@@ -1,0 +1,45 @@
+{
+  "version": "1",
+  "profiles": [
+    {
+      "name": "slack-ops-intake",
+      "source": "slack",
+      "match": {
+        "team_id": "T-EXAMPLE",
+        "channel_id": "C-OPS-INTAKE"
+      },
+      "defaults": {
+        "bucket": "ops",
+        "sensitivity": "restricted",
+        "tags": [
+          "slack",
+          "ops-intake"
+        ]
+      },
+      "parsing_hints": {
+        "mode": "security-ops",
+        "article_slash_command": "/distill"
+      }
+    },
+    {
+      "name": "discord-findings-room",
+      "source": "discord",
+      "match": {
+        "guild_id": "GUILD-EXAMPLE",
+        "channel_id": "CHAN-FINDINGS",
+        "author_id": "AUTHOR-EXAMPLE"
+      },
+      "defaults": {
+        "bucket": "findings",
+        "sensitivity": "restricted",
+        "tags": [
+          "discord",
+          "finding-intake"
+        ]
+      },
+      "parsing_hints": {
+        "mode": "triage"
+      }
+    }
+  ]
+}

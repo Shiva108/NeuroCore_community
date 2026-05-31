@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeuroCore Module Metadata",
+  "type": "object",
+  "required": [
+    "name",
+    "kind",
+    "description",
+    "owner",
+    "status",
+    "interfaces",
+    "test_coverage"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "test_coverage": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

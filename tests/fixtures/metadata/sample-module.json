@@ -1,0 +1,14 @@
+{
+  "name": "memory-query",
+  "kind": "module",
+  "description": "Query adapter and ranking support.",
+  "owner": "neurocore",
+  "status": "active",
+  "interfaces": [
+    "library",
+    "cli",
+    "http",
+    "mcp"
+  ],
+  "test_coverage": "pytest"
+}

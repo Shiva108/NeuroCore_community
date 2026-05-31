@@ -1,0 +1,240 @@
+{
+  "config": {
+    "allowed_buckets": [
+      "research",
+      "planning",
+      "ops"
+    ],
+    "chunk_overlap_tokens": 2,
+    "default_namespace": "project-alpha",
+    "default_sensitivity": "standard",
+    "max_atomic_tokens": 6,
+    "max_chunk_tokens": 8,
+    "semantic_backend": "none",
+    "semantic_model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "target_chunk_tokens": 6
+  },
+  "fixture": "baseline",
+  "queries": [
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 3,
+          "policy_allowed": 4,
+          "ranked": 3,
+          "return_mode_allowed": 4,
+          "selected_post_aggregate": 1,
+          "selected_pre_aggregate": 1,
+          "semantic_scored": 0,
+          "store": 4
+        },
+        "filter_counts": {
+          "excluded_return_mode": 0,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": false,
+          "configured_backend": "none",
+          "warning_emitted": true
+        },
+        "return_mode": "hybrid",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 0,
+          "record": 1
+        },
+        "semantic_mode": "metadata-only"
+      },
+      "matched_by": [
+        "metadata"
+      ],
+      "name": "metadata_record_lookup",
+      "request": {
+        "allowed_buckets": [
+          "research"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "retrieval fallback",
+        "return_mode": "hybrid",
+        "sensitivity_ceiling": "standard",
+        "top_k": 1
+      },
+      "result_ids": [
+        "rec-74961e90-50ec-508a-ad2d-2f199b3fdbf1"
+      ],
+      "warnings": [
+        "Semantic ranker unavailable; using metadata-only fallback."
+      ]
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 0,
+          "policy_allowed": 4,
+          "ranked": 2,
+          "return_mode_allowed": 3,
+          "selected_post_aggregate": 1,
+          "selected_pre_aggregate": 1,
+          "semantic_scored": 3,
+          "store": 4
+        },
+        "filter_counts": {
+          "excluded_return_mode": 1,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": true,
+          "configured_backend": "none",
+          "warning_emitted": false
+        },
+        "return_mode": "chunk_only",
+        "selected_kinds": {
+          "chunk": 1,
+          "document": 0,
+          "record": 0
+        },
+        "semantic_mode": "hybrid"
+      },
+      "matched_by": [
+        "hybrid"
+      ],
+      "name": "semantic_chunk_lookup",
+      "request": {
+        "allowed_buckets": [
+          "research"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "semantic query",
+        "return_mode": "chunk_only",
+        "sensitivity_ceiling": "standard",
+        "top_k": 1
+      },
+      "result_ids": [
+        "chunk-5041b5e6-6de9-5130-ae11-20a53dc81165"
+      ],
+      "warnings": []
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 3,
+          "policy_allowed": 4,
+          "ranked": 3,
+          "return_mode_allowed": 4,
+          "selected_post_aggregate": 2,
+          "selected_pre_aggregate": 2,
+          "semantic_scored": 0,
+          "store": 4
+        },
+        "filter_counts": {
+          "excluded_return_mode": 0,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": false,
+          "configured_backend": "none",
+          "warning_emitted": true
+        },
+        "return_mode": "document_aggregate",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 1,
+          "record": 1
+        },
+        "semantic_mode": "metadata-only"
+      },
+      "matched_by": [
+        "metadata",
+        "metadata"
+      ],
+      "name": "document_aggregate_lookup",
+      "request": {
+        "allowed_buckets": [
+          "research"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "retrieval detail",
+        "return_mode": "document_aggregate",
+        "sensitivity_ceiling": "standard",
+        "top_k": 2
+      },
+      "result_ids": [
+        "rec-74961e90-50ec-508a-ad2d-2f199b3fdbf1",
+        "doc-9a2b6b99-36ec-5fbc-9043-aa86337182f0"
+      ],
+      "warnings": [
+        "Semantic ranker unavailable; using metadata-only fallback."
+      ]
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 0,
+          "policy_allowed": 0,
+          "ranked": 0,
+          "return_mode_allowed": 0,
+          "selected_post_aggregate": 0,
+          "selected_pre_aggregate": 0,
+          "semantic_scored": 0,
+          "store": 1
+        },
+        "filter_counts": {
+          "excluded_return_mode": 0,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 1,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": false,
+          "configured_backend": "none",
+          "warning_emitted": true
+        },
+        "return_mode": "hybrid",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 0,
+          "record": 0
+        },
+        "semantic_mode": "metadata-only"
+      },
+      "matched_by": [],
+      "name": "restricted_filter_lookup",
+      "request": {
+        "allowed_buckets": [
+          "ops"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "response plan",
+        "return_mode": "hybrid",
+        "sensitivity_ceiling": "standard",
+        "top_k": 5
+      },
+      "result_ids": [],
+      "warnings": [
+        "Semantic ranker unavailable; using metadata-only fallback."
+      ]
+    }
+  ]
+}

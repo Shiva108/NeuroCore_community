@@ -1,0 +1,266 @@
+{
+  "name": "baseline",
+  "config": {
+    "default_namespace": "project-alpha",
+    "allowed_buckets": [
+      "research",
+      "planning",
+      "ops"
+    ],
+    "default_sensitivity": "standard",
+    "max_atomic_tokens": 6,
+    "target_chunk_tokens": 6,
+    "max_chunk_tokens": 8,
+    "chunk_overlap_tokens": 2,
+    "semantic_backend": "none",
+    "semantic_model_name": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "captures": [
+    {
+      "alias": "fallback_record",
+      "request": {
+        "namespace": "project-alpha",
+        "bucket": "research",
+        "sensitivity": "standard",
+        "content": "retrieval fallback note",
+        "content_format": "markdown",
+        "source_type": "note"
+      }
+    },
+    {
+      "alias": "design_doc",
+      "request": {
+        "namespace": "project-alpha",
+        "bucket": "research",
+        "sensitivity": "standard",
+        "content": "Sentence one explains the system. Sentence two adds retrieval detail. Sentence three covers isolation policy.",
+        "content_format": "markdown",
+        "source_type": "note",
+        "title": "Design note"
+      }
+    },
+    {
+      "alias": "planning_record",
+      "request": {
+        "namespace": "project-alpha",
+        "bucket": "planning",
+        "sensitivity": "standard",
+        "content": "project plan milestone",
+        "content_format": "markdown",
+        "source_type": "note"
+      }
+    },
+    {
+      "alias": "restricted_record",
+      "request": {
+        "namespace": "project-alpha",
+        "bucket": "ops",
+        "sensitivity": "restricted",
+        "content": "restricted response plan",
+        "content_format": "markdown",
+        "source_type": "note"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "name": "metadata_record_lookup",
+      "request": {
+        "query_text": "retrieval fallback",
+        "namespace": "project-alpha",
+        "allowed_buckets": [
+          "research"
+        ],
+        "sensitivity_ceiling": "standard",
+        "top_k": 1,
+        "return_mode": "hybrid"
+      },
+      "expected_result_ids": [
+        "fallback_record"
+      ],
+      "expected_diagnostics": {
+        "semantic_mode": "metadata-only",
+        "return_mode": "hybrid",
+        "candidate_counts": {
+          "store": 4,
+          "policy_allowed": 4,
+          "return_mode_allowed": 4,
+          "semantic_scored": 0,
+          "metadata_matched": 3,
+          "ranked": 3,
+          "selected_pre_aggregate": 1,
+          "selected_post_aggregate": 1
+        },
+        "filter_counts": {
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_any": 0,
+          "excluded_tags_all": 0,
+          "excluded_time_range": 0,
+          "excluded_return_mode": 0
+        },
+        "selected_kinds": {
+          "record": 1,
+          "chunk": 0,
+          "document": 0
+        },
+        "ranker": {
+          "configured_backend": "none",
+          "active": false,
+          "warning_emitted": true
+        }
+      }
+    },
+    {
+      "name": "semantic_chunk_lookup",
+      "request": {
+        "query_text": "semantic query",
+        "namespace": "project-alpha",
+        "allowed_buckets": [
+          "research"
+        ],
+        "sensitivity_ceiling": "standard",
+        "top_k": 1,
+        "return_mode": "chunk_only"
+      },
+      "semantic_scores": {
+        "design_doc#2": 0.9,
+        "design_doc#3": 0.2
+      },
+      "expected_result_ids": [
+        "design_doc#2"
+      ],
+      "expected_diagnostics": {
+        "semantic_mode": "hybrid",
+        "return_mode": "chunk_only",
+        "candidate_counts": {
+          "store": 4,
+          "policy_allowed": 4,
+          "return_mode_allowed": 3,
+          "semantic_scored": 3,
+          "metadata_matched": 0,
+          "ranked": 2,
+          "selected_pre_aggregate": 1,
+          "selected_post_aggregate": 1
+        },
+        "filter_counts": {
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_any": 0,
+          "excluded_tags_all": 0,
+          "excluded_time_range": 0,
+          "excluded_return_mode": 1
+        },
+        "selected_kinds": {
+          "record": 0,
+          "chunk": 1,
+          "document": 0
+        },
+        "ranker": {
+          "configured_backend": "none",
+          "active": true,
+          "warning_emitted": false
+        }
+      }
+    },
+    {
+      "name": "document_aggregate_lookup",
+      "request": {
+        "query_text": "retrieval detail",
+        "namespace": "project-alpha",
+        "allowed_buckets": [
+          "research"
+        ],
+        "sensitivity_ceiling": "standard",
+        "top_k": 2,
+        "return_mode": "document_aggregate"
+      },
+      "expected_result_ids": [
+        "fallback_record",
+        "design_doc"
+      ],
+      "expected_diagnostics": {
+        "semantic_mode": "metadata-only",
+        "return_mode": "document_aggregate",
+        "candidate_counts": {
+          "store": 4,
+          "policy_allowed": 4,
+          "return_mode_allowed": 4,
+          "semantic_scored": 0,
+          "metadata_matched": 3,
+          "ranked": 3,
+          "selected_pre_aggregate": 2,
+          "selected_post_aggregate": 2
+        },
+        "filter_counts": {
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_any": 0,
+          "excluded_tags_all": 0,
+          "excluded_time_range": 0,
+          "excluded_return_mode": 0
+        },
+        "selected_kinds": {
+          "record": 1,
+          "chunk": 0,
+          "document": 1
+        },
+        "ranker": {
+          "configured_backend": "none",
+          "active": false,
+          "warning_emitted": true
+        }
+      }
+    },
+    {
+      "name": "restricted_filter_lookup",
+      "request": {
+        "query_text": "response plan",
+        "namespace": "project-alpha",
+        "allowed_buckets": [
+          "ops"
+        ],
+        "sensitivity_ceiling": "standard",
+        "top_k": 5,
+        "return_mode": "hybrid"
+      },
+      "expected_result_ids": [],
+      "expected_diagnostics": {
+        "semantic_mode": "metadata-only",
+        "return_mode": "hybrid",
+        "candidate_counts": {
+          "store": 1,
+          "policy_allowed": 0,
+          "return_mode_allowed": 0,
+          "semantic_scored": 0,
+          "metadata_matched": 0,
+          "ranked": 0,
+          "selected_pre_aggregate": 0,
+          "selected_post_aggregate": 0
+        },
+        "filter_counts": {
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 1,
+          "excluded_source_type": 0,
+          "excluded_tags_any": 0,
+          "excluded_tags_all": 0,
+          "excluded_time_range": 0,
+          "excluded_return_mode": 0
+        },
+        "selected_kinds": {
+          "record": 0,
+          "chunk": 0,
+          "document": 0
+        },
+        "ranker": {
+          "configured_backend": "none",
+          "active": false,
+          "warning_emitted": true
+        }
+      }
+    }
+  ]
+}

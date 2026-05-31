@@ -1,0 +1,1 @@
+Sentence one explains the system. Sentence two adds retrieval detail. Sentence three covers isolation policy. Sentence four closes the example.

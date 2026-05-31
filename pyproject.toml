@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neurocore"
+version = "0.1.0"
+description = "Contract-first memory core for storing and retrieving policy-aware notes and documents."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.136.0",
+    "jsonschema>=4.0",
+    "mcp>=1.0.0",
+    "psycopg[binary]>=3.2",
+    "uvicorn>=0.30",
+]
+keywords = ["memory", "retrieval", "fastapi", "mcp", "knowledge-base"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.0",
+    "flake8>=7.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=1.0",
+]
+semantic = ["sentence-transformers>=3.0"]
+
+[project.scripts]
+neurocore = "neurocore.adapters.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203"]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "src/neurocore.egg-info",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
