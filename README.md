@@ -207,16 +207,6 @@ neurocore capture --request-json '{"bucket":"research","content":"community repo
 neurocore query --request-json '{"query_text":"community repo","namespace":"default","allowed_buckets":["research"],"sensitivity_ceiling":"standard"}'
 ```
 
-## Demo Screenshots
-
-CLI capture and query flow:
-
-![CLI capture and query demo](assets/screenshots/cli-query-demo.svg)
-
-Consensus reporting example:
-
-![Consensus reporting demo](assets/screenshots/reporting-demo.svg)
-
 ## Repository Structure
 
 ```text
