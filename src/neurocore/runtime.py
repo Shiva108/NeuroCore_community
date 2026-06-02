@@ -11,6 +11,7 @@ from neurocore.reporting.consensus import (
     MultiModelConsensusReporter,
     OpenAICompatibleReportClient,
     PrimaryWithFallbackReporter,
+    ReportGenerator,
     SingleModelReportReporter,
 )
 from neurocore.storage.base import BaseStore
@@ -119,7 +120,7 @@ def build_summarizer(config: NeuroCoreConfig) -> Summarizer:
     return ConsensusSummarizer()
 
 
-def build_reporter(config: NeuroCoreConfig):
+def build_reporter(config: NeuroCoreConfig) -> ReportGenerator:
     """Build the consensus reporting engine for the current runtime."""
     if not config.enable_multi_model_consensus:
         raise PermissionError("Reporting is disabled")

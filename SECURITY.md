@@ -4,6 +4,10 @@
 
 Do not open public issues for suspected vulnerabilities.
 
+Do not include real API keys, bearer tokens, database URLs, local `.env`
+content, or unsanitized provider logs in bug reports, screenshots, or pull
+requests.
+
 Preferred path:
 
 - use GitHub private vulnerability reporting once it is enabled on the public

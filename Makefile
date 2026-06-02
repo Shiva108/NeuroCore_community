@@ -1,6 +1,9 @@
 setup:
 	python scripts/bootstrap.py
 
+format:
+	black src tests scripts
+
 test:
 	pytest
 

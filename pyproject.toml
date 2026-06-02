@@ -7,7 +7,8 @@ name = "neurocore"
 version = "0.1.0"
 description = "Contract-first memory core for storing and retrieving policy-aware notes and documents."
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.136.0",
@@ -20,7 +21,6 @@ keywords = ["memory", "retrieval", "fastapi", "mcp", "knowledge-base"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -32,6 +32,7 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "black>=24.0",
+    "build>=1.2",
     "flake8>=7.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
@@ -50,21 +51,9 @@ addopts = "-ra"
 line-length = 88
 target-version = ["py311"]
 
-[tool.flake8]
-max-line-length = 120
-extend-ignore = ["E203"]
-exclude = [
-    ".git",
-    ".venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "src/neurocore.egg-info",
-]
-
 [tool.setuptools]
 package-dir = {"" = "src"}
-license-files = ["LICENSE"]
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]

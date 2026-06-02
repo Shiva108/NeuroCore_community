@@ -19,6 +19,12 @@ dist/
 token.json
 secrets.json
 preferences.json
+*.generated.md
+*.output.md
+output*.md
+outputs/**/*.md
+reports/**/*.md
+artifacts/**/*.md
 
 data/
 outputs/

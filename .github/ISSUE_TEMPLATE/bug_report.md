@@ -10,6 +10,9 @@ assignees: ""
 
 Describe the bug clearly.
 
+Do not use this template for security vulnerabilities. Follow the private
+reporting guidance in `SECURITY.md` instead.
+
 ## Reproduction
 
 1. 

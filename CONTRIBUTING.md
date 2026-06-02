@@ -10,6 +10,8 @@ Start by reading the active contract docs:
 - `docs/ssd/source-matrix.md`
 
 Keep behavior, tests, and SSD docs aligned. Prefer small, reviewable changes.
+Use the public setup guides in `docs/` for environment and troubleshooting
+details that do not belong in the SSD contract set.
 
 ## Local Setup
 
@@ -20,6 +22,12 @@ source .venv/bin/activate
 
 The bootstrap script creates `.venv`, installs the package in editable mode,
 and writes a local operator env file outside the repo checkout.
+
+Optional reference material:
+
+- `docs/setup.md`
+- `docs/configuration.md`
+- `docs/troubleshooting.md`
 
 ## Validation
 
@@ -41,6 +49,7 @@ python scripts/generate_openapi_snapshot.py --check
 - Update the SSD docs when a public contract or supported workflow changes.
 - Prefer generic, community-safe examples over personal or provider-specific
   setup guidance.
+- Sanitize screenshots, logs, and sample payloads before including them in a PR.
 
 ## Pull Requests
 

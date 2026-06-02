@@ -1,5 +1,1 @@
 blank_issues_enabled: false
-contact_links:
-  - name: Security issue
-    url: https://github.com
-    about: Use private reporting instead of public issues for vulnerabilities.
