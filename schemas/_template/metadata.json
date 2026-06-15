@@ -1,0 +1,21 @@
+{
+  "name": "Schema Template",
+  "category": "schemas",
+  "description": "Template for supplemental NeuroCore schema patterns.",
+  "owner": {
+    "name": "NeuroCore"
+  },
+  "version": "1.0.0",
+  "requires": {
+    "neurocore": true,
+    "tools": [
+      "Python 3.11+"
+    ]
+  },
+  "tags": [
+    "template"
+  ],
+  "difficulty": "intermediate",
+  "estimated_time": "20 minutes",
+  "curation": "open"
+}

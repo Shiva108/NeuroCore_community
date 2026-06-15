@@ -1,0 +1,91 @@
+<svg width="1600" height="420" viewBox="0 0 1600 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeuroCore banner</title>
+  <desc id="desc">Dark rounded banner with a glowing hexagonal neuro core emblem and title text for the NeuroCore project.</desc>
+  <defs>
+    <linearGradient id="bgGlow" x1="140" y1="40" x2="1460" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#121923"/>
+      <stop offset="1" stop-color="#0B1018"/>
+    </linearGradient>
+    <linearGradient id="hexStroke" x1="118" y1="53" x2="358" y2="370" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="coreFill" x1="154" y1="159" x2="282" y2="274" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="accentLine" x1="98" y1="110" x2="196" y2="208" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="panelShadow" x="0" y="0" width="1600" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="18"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.0313726 0 0 0 0 0.0588235 0 0 0 0.45 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+    <filter id="tealGlow" x="95" y="75" width="245" height="245" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="8" result="effect1_foregroundBlur_1_1"/>
+    </filter>
+    <filter id="orangeGlow" x="68" y="73" width="161" height="153" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="5" result="effect1_foregroundBlur_1_1"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#panelShadow)">
+    <rect x="12" y="12" width="1576" height="396" rx="42" fill="url(#bgGlow)"/>
+    <rect x="13.5" y="13.5" width="1573" height="393" rx="40.5" stroke="#1F2937" stroke-width="3"/>
+  </g>
+
+  <g opacity="0.08">
+    <circle cx="1410" cy="78" r="132" fill="#0F172A"/>
+    <circle cx="1510" cy="284" r="96" fill="#111827"/>
+  </g>
+
+  <g>
+    <path d="M200 62L318 130V266L200 334L82 266V130L200 62Z" fill="#111827" stroke="url(#hexStroke)" stroke-width="4"/>
+    <path d="M200 82L300 140V256L200 314L100 256V140L200 82Z" fill="#0E1520" opacity="0.9" stroke="#2A3341" stroke-width="2"/>
+  </g>
+
+  <g filter="url(#orangeGlow)">
+    <path d="M105 106L188 191" stroke="url(#accentLine)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M170 170L188 191L214 183" stroke="#FB7185" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#tealGlow)">
+    <circle cx="200" cy="194" r="31" fill="url(#coreFill)"/>
+    <circle cx="200" cy="194" r="14" fill="#0F766E" opacity="0.35"/>
+    <circle cx="141" cy="194" r="10" fill="#5EEAD4"/>
+    <circle cx="248" cy="143" r="10" fill="#5EEAD4"/>
+    <circle cx="284" cy="204" r="10" fill="#5EEAD4"/>
+    <circle cx="232" cy="253" r="10" fill="#5EEAD4"/>
+    <circle cx="169" cy="251" r="10" fill="#5EEAD4"/>
+    <path d="M171 194H151" stroke="#2DD4BF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M223 176L241 150" stroke="#2DD4BF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M230 198L273 202" stroke="#2DD4BF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M216 219L228 244" stroke="#2DD4BF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M184 220L173 242" stroke="#2DD4BF" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="200" cy="194" r="8" fill="#A7F3D0"/>
+  </g>
+
+  <g>
+    <text x="420" y="128" fill="#2DD4BF" stroke="none" font-family="DejaVu Sans Mono, Consolas, Liberation Mono, Menlo, monospace" font-size="16" font-weight="700" letter-spacing="4.4">GOVERNED MEMORY RUNTIME FOR AGENTS</text>
+    <text x="420" y="228" fill="#E5EDF5" stroke="none" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-size="64" font-weight="800">Neuro</text>
+    <text x="620" y="228" fill="#5EEAD4" stroke="none" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-size="64" font-weight="800">Core</text>
+    <text x="420" y="288" fill="#8B98A9" stroke="none" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-size="28" font-weight="500">Policy-aware capture, storage, querying, and synthesized briefings</text>
+  </g>
+
+  <g>
+    <rect x="420" y="325" width="312" height="52" rx="16" fill="#0A0F17" stroke="#2A3341" stroke-width="2.5"/>
+    <text x="446" y="359" fill="#5EEAD4" stroke="none" font-family="DejaVu Sans Mono, Consolas, Liberation Mono, Menlo, monospace" font-size="18" font-weight="700">CLI · HTTP · MCP · REPORTING</text>
+    <text x="760" y="359" fill="#667085" stroke="none" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-size="20" font-weight="500">SQLite • Postgres • Sessions • Brains</text>
+  </g>
+</svg>

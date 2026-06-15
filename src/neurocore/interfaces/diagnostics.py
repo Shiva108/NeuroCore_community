@@ -29,6 +29,7 @@ from neurocore.core.operator_state import (
 from neurocore.core.policies import BUCKET_PATTERN, NAMESPACE_PATTERN
 from neurocore.core.semantic import sentence_transformers_status
 from neurocore.interfaces.reporting import build_reporting_status
+from neurocore.maintenance.sqlite import inspect_sqlite_footprint
 from neurocore.runtime import (
     build_production_backend_choice,
     build_storage_backend_status,
@@ -95,6 +96,10 @@ def diagnose_runtime(
         "semantic": semantic_payload,
         "reporting": reporting_payload,
         "provider_health": provider_health,
+        "sqlite_footprint": inspect_sqlite_footprint(
+            config=effective_config,
+            store=store,
+        ),
     }
     return payload
 
@@ -108,6 +113,8 @@ def _config_summary(
         "allowed_buckets": list(config.allowed_buckets),
         "default_sensitivity": config.default_sensitivity,
         "storage_backend": config.storage_backend,
+        "mirror_read_preference": config.mirror_read_preference,
+        "mirror_sealed_mode": config.mirror_sealed_mode,
         "semantic_backend": config.semantic_backend,
         "semantic_model_name": config.semantic_model_name,
         "enable_admin_surface": config.enable_admin_surface,

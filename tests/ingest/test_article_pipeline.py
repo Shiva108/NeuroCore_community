@@ -341,6 +341,14 @@ def test_distill_article_knowledge_returns_structured_reusable_fields():
     assert artifact["summary"]
     assert artifact["key_claims"]
     assert artifact["techniques"]
+    assert artifact["security_entities"]["technologies"] == ["ldap"]
+    assert artifact["mitigations"]
+    assert artifact["open_questions"]
+    assert artifact["source_backed_claims"][0]["source_url"] == (
+        "https://example.invalid/articles/ldap"
+    )
     assert artifact["tags"]
     assert artifact["quality"]["score"] == 5
     assert artifact["content"].startswith("# Summary")
+    assert "# Security Entities" in artifact["content"]
+    assert "# Source-backed Claims" in artifact["content"]

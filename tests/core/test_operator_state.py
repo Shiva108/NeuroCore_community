@@ -1,9 +1,17 @@
+import os
 from pathlib import Path
 
 from neurocore.core.operator_state import (
     OPERATOR_HOME_ENV,
     load_env_file,
+    load_managed_http_service_state,
+    load_mirror_status,
     load_operator_env,
+    managed_http_service_log_path,
+    managed_http_service_state_path,
+    pid_is_active,
+    save_managed_http_service_state,
+    save_mirror_status,
 )
 
 
@@ -68,7 +76,7 @@ def test_load_operator_env_warns_when_falling_back_to_legacy_env(tmp_path: Path)
     capture = Capture()
     values, _, legacy = load_operator_env(
         tmp_path,
-        base_env={"HOME": str(tmp_path / "home")},
+        base_env={"HOME": str(tmp_path)},
         stderr=capture,
     )
 
@@ -77,3 +85,80 @@ def test_load_operator_env_warns_when_falling_back_to_legacy_env(tmp_path: Path)
     assert any(
         "repo-local operator state is deprecated" in line for line in capture.lines
     )
+
+
+def test_load_operator_env_prefers_legacy_env_over_ambient_default_operator_home(
+    tmp_path: Path,
+):
+    operator_home = tmp_path / "neurocore"
+    operator_home.mkdir()
+    (operator_home / ".env").write_text(
+        "NEUROCORE_DEFAULT_NAMESPACE=external\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text(
+        "NEUROCORE_DEFAULT_NAMESPACE=legacy\n",
+        encoding="utf-8",
+    )
+
+    values, env_path, legacy = load_operator_env(
+        tmp_path,
+        base_env={
+            "HOME": str(tmp_path),
+            "XDG_STATE_HOME": str(tmp_path),
+        },
+    )
+
+    assert legacy is True
+    assert env_path == operator_home / ".env"
+    assert values["NEUROCORE_DEFAULT_NAMESPACE"] == "legacy"
+
+
+def test_save_and_load_mirror_status_round_trip(tmp_path: Path):
+    snapshot = {
+        "parity_verified": True,
+        "last_parity_check": "2026-06-12T10:00:00+00:00",
+        "last_sync_action": "verify_parity",
+        "last_sync_status": "success",
+    }
+    status_path = tmp_path / "state" / "mirror-status.json"
+
+    saved_path = save_mirror_status(snapshot, status_path)
+
+    assert saved_path == status_path
+    assert load_mirror_status(status_path) == snapshot
+
+
+def test_save_and_load_managed_http_service_state_round_trip(tmp_path: Path):
+    snapshot = {
+        "pid": 1234,
+        "host": "127.0.0.1",
+        "port": 8000,
+        "started_at": "2026-06-14T10:00:00+00:00",
+        "log_path": str(tmp_path / "managed-http-service.log"),
+        "repo_root": str(tmp_path / "repo"),
+        "env_path": str(tmp_path / ".env"),
+        "argv": ["python", "-m", "neurocore.adapters.cli", "serve", "http"],
+    }
+    state_path = tmp_path / "state" / "managed-http-service.json"
+
+    saved_path = save_managed_http_service_state(snapshot, state_path)
+
+    assert saved_path == state_path
+    assert load_managed_http_service_state(state_path) == snapshot
+
+
+def test_managed_http_service_paths_use_operator_home(tmp_path: Path):
+    values = {OPERATOR_HOME_ENV: str(tmp_path / "operator-home")}
+
+    assert managed_http_service_state_path(values) == (
+        tmp_path / "operator-home" / "data" / "managed-http-service.json"
+    )
+    assert managed_http_service_log_path(values) == (
+        tmp_path / "operator-home" / "data" / "managed-http-service.log"
+    )
+
+
+def test_pid_is_active_recognizes_current_process():
+    assert pid_is_active(os.getpid()) is True
+    assert pid_is_active(-1) is False

@@ -14,6 +14,7 @@ from neurocore.core.ingest_profiles import (
 )
 from neurocore.core.operator_state import (
     default_primary_store_path,
+    default_scheduler_store_path,
     default_sealed_store_path,
 )
 
@@ -78,6 +79,7 @@ class NeuroCoreConfig:
     enable_mcp_adapter: bool = False
     enable_dashboard: bool = False
     enable_background_summarization: bool = False
+    enable_scheduler: bool = False
     enable_multi_model_consensus: bool = False
     consensus_provider: str = "none"
     consensus_model_names: tuple[str, ...] = ()
@@ -93,6 +95,7 @@ class NeuroCoreConfig:
     production_backend_provider: str = "none"
     production_database_url: str | None = None
     production_sealed_database_url: str | None = None
+    scheduler_store_path: str = field(default_factory=default_scheduler_store_path)
     dedup_merge_metadata: bool = True
     ingest_profile_path: str | None = None
     ingest_profiles: dict[str, object] = field(
@@ -218,6 +221,7 @@ def load_config(env: dict[str, str] | None = None) -> NeuroCoreConfig:
         enable_background_summarization=_parse_bool(
             values, "NEUROCORE_ENABLE_BACKGROUND_SUMMARIZATION", False
         ),
+        enable_scheduler=_parse_bool(values, "NEUROCORE_ENABLE_SCHEDULER", False),
         enable_multi_model_consensus=_parse_bool(
             values, "NEUROCORE_ENABLE_MULTI_MODEL_CONSENSUS", False
         ),
@@ -240,6 +244,10 @@ def load_config(env: dict[str, str] | None = None) -> NeuroCoreConfig:
         production_backend_provider=production_backend_provider,
         production_database_url=production_database_url,
         production_sealed_database_url=production_sealed_database_url,
+        scheduler_store_path=values.get(
+            "NEUROCORE_SCHEDULER_STORE_PATH",
+            default_scheduler_store_path(values),
+        ),
         dedup_merge_metadata=_parse_bool(
             values, "NEUROCORE_DEDUP_MERGE_METADATA", True
         ),

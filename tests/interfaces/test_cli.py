@@ -1,5 +1,6 @@
 import io
 import json
+from pathlib import Path
 import runpy
 
 import pytest
@@ -9,6 +10,9 @@ from neurocore.adapters.cli import main, run_http_server, run_mcp_server
 from neurocore.core.config import NeuroCoreConfig
 from neurocore.interfaces.capture import capture_memory
 from neurocore.storage.in_memory import InMemoryStore
+from neurocore.storage.mirrored_store import MirroredStore
+from neurocore.storage.router import RoutedStore
+from neurocore.storage.sqlite_store import SQLiteStore
 
 
 def build_config() -> NeuroCoreConfig:
@@ -134,6 +138,62 @@ def test_cli_capture_batch_command_uses_library_contracts():
     assert payload["results"][0]["payload"]["kind"] == "record"
 
 
+def test_cli_capture_reports_partial_mirror_persistence():
+    class FailingLocalStore(InMemoryStore):
+        def save_record(self, record, signature):
+            raise RuntimeError("disk unavailable")
+
+    store = MirroredStore(
+        local_store=RoutedStore(
+            primary_store=FailingLocalStore(),
+            sealed_store=InMemoryStore(),
+        ),
+        cloud_store=RoutedStore(
+            primary_store=InMemoryStore(),
+            sealed_store=InMemoryStore(),
+        ),
+        read_preference="local",
+    )
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        storage_backend="mirror",
+        mirror_read_preference="local",
+        production_backend_provider="supabase",
+        production_database_url="postgresql://primary",
+        production_sealed_database_url="postgresql://sealed",
+    )
+    stdout = io.StringIO()
+
+    exit_code = main(
+        [
+            "capture",
+            "--request-json",
+            json.dumps(
+                {
+                    "namespace": "project-alpha",
+                    "bucket": "research",
+                    "sensitivity": "standard",
+                    "content": "cli mirror partial",
+                    "content_format": "markdown",
+                    "source_type": "note",
+                }
+            ),
+        ],
+        store=store,
+        config=config,
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["persistence_state"] == "partial"
+    assert payload["parity_state"] == "degraded"
+    assert payload["reconciliation_attempted"] is True
+    assert payload["mirror_status"]["local_degraded"] is True
+
+
 def test_cli_admin_commands_respect_admin_toggle():
     store = InMemoryStore()
     config = build_config()
@@ -176,6 +236,79 @@ def test_cli_admin_commands_respect_admin_toggle():
             config=config,
             stdout=io.StringIO(),
         )
+
+    with pytest.raises(PermissionError, match="disabled"):
+        main(
+            [
+                "admin",
+                "maintenance",
+                "--request-json",
+                json.dumps({"action": "report"}),
+            ],
+            store=store,
+            config=config,
+            stdout=io.StringIO(),
+        )
+
+
+def test_cli_admin_sync_reconcile_union_reports_bidirectional_copy():
+    local = RoutedStore(primary_store=InMemoryStore(), sealed_store=InMemoryStore())
+    cloud = RoutedStore(primary_store=InMemoryStore(), sealed_store=InMemoryStore())
+    store = MirroredStore(local_store=local, cloud_store=cloud, read_preference="local")
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        enable_admin_surface=True,
+        storage_backend="mirror",
+        mirror_read_preference="local",
+        production_backend_provider="supabase",
+        production_database_url="postgresql://primary",
+        production_sealed_database_url="postgresql://sealed",
+    )
+    capture_memory(
+        {
+            "namespace": "project-alpha",
+            "bucket": "research",
+            "sensitivity": "standard",
+            "content": "local only cli union",
+            "content_format": "markdown",
+            "source_type": "note",
+        },
+        store=local,
+        config=config,
+    )
+    capture_memory(
+        {
+            "namespace": "project-alpha",
+            "bucket": "research",
+            "sensitivity": "standard",
+            "content": "cloud only cli union",
+            "content_format": "markdown",
+            "source_type": "note",
+        },
+        store=cloud,
+        config=config,
+    )
+    stdout = io.StringIO()
+
+    exit_code = main(
+        [
+            "admin",
+            "sync",
+            "--request-json",
+            json.dumps({"action": "reconcile_union", "actor": "tester"}),
+        ],
+        store=store,
+        config=config,
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["action"] == "reconcile_union"
+    assert payload["parity"]["repair_mode"] == "union"
+    assert payload["parity"]["in_sync_after"] is True
 
 
 def test_cli_ingest_and_summarize_commands_use_library_contracts():
@@ -299,6 +432,41 @@ def test_cli_admin_sync_command_returns_status_payload():
     payload = json.loads(stdout.getvalue())
     assert payload["action"] == "status"
     assert payload["supported"] is False
+
+
+def test_cli_admin_maintenance_command_returns_sqlite_payload(tmp_path):
+    stdout = io.StringIO()
+    store = RoutedStore(
+        primary_store=SQLiteStore(tmp_path / "primary.db"),
+        sealed_store=SQLiteStore(tmp_path / "sealed.db"),
+    )
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        storage_backend="sqlite",
+        primary_store_path=str(tmp_path / "primary.db"),
+        sealed_store_path=str(tmp_path / "sealed.db"),
+        enable_admin_surface=True,
+    )
+
+    exit_code = main(
+        [
+            "admin",
+            "maintenance",
+            "--request-json",
+            json.dumps({"action": "report"}),
+        ],
+        store=store,
+        config=config,
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["action"] == "report"
+    assert payload["supported"] is True
+    assert [target["name"] for target in payload["targets"]] == ["primary", "sealed"]
 
 
 def test_cli_report_consensus_command_returns_report_payload(
@@ -666,6 +834,181 @@ def test_cli_report_consensus_command_respects_consensus_toggle():
     assert payload["mode"] == "fallback-briefing"
 
 
+def test_cli_validate_extension_command_does_not_require_runtime_config():
+    stdout = io.StringIO()
+
+    exit_code = main(
+        ["validate-extension", "skills/daily-memory-triage"],
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["valid"] is True
+    assert payload["kind"] == "contribution"
+    assert payload["target"] == "skills/daily-memory-triage"
+    assert payload["checks_run"] == [
+        "contribution_structure",
+        "contribution_metadata",
+    ]
+
+
+def test_cli_validate_extension_command_supports_bundle_targets():
+    stdout = io.StringIO()
+
+    exit_code = main(
+        ["validate-extension", "extensions/bundles/operator-memory-starter.json"],
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["valid"] is True
+    assert payload["kind"] == "bundle"
+    assert payload["checks_run"] == ["bundle_manifest"]
+
+
+def test_cli_validate_extension_command_reports_invalid_target(monkeypatch, tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    monkeypatch.setattr(cli_module, "REPO_ROOT", repo_root)
+    stdout = io.StringIO()
+
+    exit_code = main(["validate-extension", "missing/path"], stdout=stdout)
+
+    assert exit_code == 1
+    payload = json.loads(stdout.getvalue())
+    assert payload["valid"] is False
+    assert payload["target"] == "missing/path"
+    assert payload["checks_run"] == []
+
+
+def test_cli_validate_extension_command_reports_invalid_metadata_checks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    repo_root = tmp_path / "repo"
+    metadata_path = repo_root / "recipes" / "bad-recipe" / "metadata.json"
+    metadata_path.parent.mkdir(parents=True)
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "name": "Bad Recipe",
+                "category": "skills",
+                "description": "Broken",
+                "owner": {"name": "NeuroCore"},
+                "version": "1.0.0",
+                "requires": {"neurocore": True},
+                "tags": ["broken"],
+                "difficulty": "beginner",
+                "estimated_time": "5 minutes",
+            }
+        ),
+        encoding="utf-8",
+    )
+    schema_dir = repo_root / ".github"
+    schema_dir.mkdir(parents=True)
+    source_schema = (
+        Path(__file__).resolve().parents[2]
+        / ".github"
+        / "contribution-metadata.schema.json"
+    )
+    (schema_dir / "contribution-metadata.schema.json").write_text(
+        source_schema.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli_module, "REPO_ROOT", repo_root)
+    stdout = io.StringIO()
+
+    exit_code = main(
+        ["validate-extension", "recipes/bad-recipe/metadata.json"],
+        stdout=stdout,
+    )
+
+    assert exit_code == 1
+    payload = json.loads(stdout.getvalue())
+    assert payload["kind"] == "metadata"
+    assert payload["checks_run"] == [
+        "contribution_metadata",
+        "contribution_structure",
+    ]
+    assert any("category must match parent folder" in error for error in payload["errors"])
+
+
+def test_cli_validate_extension_command_reports_missing_required_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    repo_root = tmp_path / "repo"
+    target = repo_root / "recipes" / "quick-capture"
+    target.mkdir(parents=True)
+    (target / "README.md").write_text("# Quick Capture\n", encoding="utf-8")
+    monkeypatch.setattr(cli_module, "REPO_ROOT", repo_root)
+    stdout = io.StringIO()
+
+    exit_code = main(
+        ["validate-extension", "recipes/quick-capture"],
+        stdout=stdout,
+    )
+
+    assert exit_code == 1
+    payload = json.loads(stdout.getvalue())
+    assert payload["kind"] == "contribution"
+    assert payload["checks_run"] == ["contribution_structure"]
+    assert "recipes/quick-capture: missing required metadata.json" in payload["errors"]
+
+
+def test_cli_scheduler_commands_use_scheduler_interface(tmp_path):
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        enable_scheduler=True,
+        scheduler_store_path=str(tmp_path / "scheduler.db"),
+    )
+    stdout = io.StringIO()
+
+    exit_code = main(
+        [
+            "scheduler",
+            "create",
+            "--request-json",
+            json.dumps(
+                {
+                    "job_type": "sync",
+                    "schedule_kind": "once",
+                    "run_at": "2026-01-01T00:00:00+00:00",
+                    "payload": {"action": "status"},
+                }
+            ),
+        ],
+        store=InMemoryStore(),
+        config=config,
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    created = json.loads(stdout.getvalue())
+    assert created["created"] is True
+    job_id = created["job"]["job_id"]
+
+    stdout = io.StringIO()
+    exit_code = main(
+        [
+            "scheduler",
+            "list",
+            "--request-json",
+            "{}",
+        ],
+        store=InMemoryStore(),
+        config=config,
+        stdout=stdout,
+    )
+
+    assert exit_code == 0
+    listed = json.loads(stdout.getvalue())
+    assert listed["count"] == 1
+    assert listed["jobs"][0]["job_id"] == job_id
+
+
 def test_cli_serve_http_command_invokes_http_runner(monkeypatch: pytest.MonkeyPatch):
     called: dict[str, object] = {}
 
@@ -692,11 +1035,13 @@ def test_cli_serve_http_command_invokes_http_runner(monkeypatch: pytest.MonkeyPa
 def test_cli_serve_mcp_command_invokes_mcp_runner(monkeypatch: pytest.MonkeyPatch):
     called: dict[str, object] = {}
 
-    def fake_run_mcp_server(*, store, config, transport, mount_path):
+    def fake_run_mcp_server(*, store, config, transport, mount_path, host, port):
         called["store"] = store
         called["config"] = config
         called["transport"] = transport
         called["mount_path"] = mount_path
+        called["host"] = host
+        called["port"] = port
 
     monkeypatch.setattr(cli_module, "run_mcp_server", fake_run_mcp_server)
 
@@ -708,6 +1053,10 @@ def test_cli_serve_mcp_command_invokes_mcp_runner(monkeypatch: pytest.MonkeyPatc
             "streamable-http",
             "--mount-path",
             "/mcp",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "9100",
         ],
         store=InMemoryStore(),
         config=build_config(),
@@ -717,6 +1066,8 @@ def test_cli_serve_mcp_command_invokes_mcp_runner(monkeypatch: pytest.MonkeyPatc
     assert exit_code == 0
     assert called["transport"] == "streamable-http"
     assert called["mount_path"] == "/mcp"
+    assert called["host"] == "0.0.0.0"
+    assert called["port"] == 9100
 
 
 def test_run_http_server_requires_http_adapter_toggle():
@@ -736,4 +1087,6 @@ def test_run_mcp_server_requires_mcp_adapter_toggle():
             config=build_config(),
             transport="stdio",
             mount_path=None,
+            host="127.0.0.1",
+            port=8000,
         )

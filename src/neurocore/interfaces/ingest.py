@@ -20,6 +20,10 @@ from neurocore.ingest.article_gates import (
 )
 from neurocore.ingest.normalize import generate_stable_id
 from neurocore.ingest.profiles import resolve_ingest_profile
+from neurocore.ingest.source_tracking import (
+    build_source_manifest,
+    source_manifest_supersedes_id,
+)
 from neurocore.interfaces.capture import (
     _merge_duplicate_metadata,
     attach_store_warnings,
@@ -394,9 +398,19 @@ def _ingest_slack_article(
     try:
         source = supplied_source or fetch_article_source(source_url)
     except ValueError as exc:
+        source_manifest = build_source_manifest(
+            store=store,
+            namespace=namespace,
+            source_type="article_raw",
+            source_url=_safe_canonical_article_url(source_url),
+            content_fingerprint="",
+            content_provenance="supplied" if supplied_source is not None else "fetched",
+            rejected=True,
+        )
         details = {
             "reason": "fetch-failed",
             "source_url": source_url,
+            "source_manifest": source_manifest,
             "error": str(exc),
             "slack_team_id": payload.get("team_id"),
             "slack_channel_id": event.get("channel"),
@@ -423,6 +437,7 @@ def _ingest_slack_article(
             },
             "raw_capture": None,
             "knowledge_capture": None,
+            "source_manifest": source_manifest,
             "persistence_state": "rejected",
         }
     source.setdefault("raw_content", source.get("content"))
@@ -438,9 +453,19 @@ def _ingest_slack_article(
         namespace=namespace,
         config=gate_config,
     )
+    source_manifest = build_source_manifest(
+        store=store,
+        namespace=namespace,
+        source_type="article_raw",
+        source_url=str(source.get("canonical_url") or ""),
+        content_fingerprint=str(evaluation.get("content_fingerprint") or ""),
+        content_provenance=str(source.get("content_provenance") or "fetched"),
+        rejected=not bool(evaluation["accepted"]),
+    )
     if not evaluation["accepted"]:
         details = {
             "canonical_url": evaluation.get("canonical_url"),
+            "source_manifest": source_manifest,
             "quality_score": evaluation.get("quality_score"),
             "scores": evaluation.get("scores"),
             "hard_fail_reasons": evaluation.get("hard_fail_reasons"),
@@ -465,6 +490,7 @@ def _ingest_slack_article(
             "evaluation": evaluation,
             "raw_capture": None,
             "knowledge_capture": None,
+            "source_manifest": source_manifest,
             "persistence_state": "rejected",
         }
 
@@ -485,6 +511,7 @@ def _ingest_slack_article(
         "source_url": source["canonical_url"],
         "submitted_source_url": source_url,
         "source_content_fingerprint": source_fingerprint,
+        "source_manifest": source_manifest,
         "operator_note": operator_note,
         "canonical_title": source["title"],
         "content_provenance": str(source.get("content_provenance") or "fetched"),
@@ -510,6 +537,7 @@ def _ingest_slack_article(
             "scores": evaluation.get("scores"),
             "bucket": bucket,
             "artifact_bucket": artifact_bucket,
+            "source_manifest": source_manifest,
         },
     )
     raw_capture = capture_memory(
@@ -532,6 +560,10 @@ def _ingest_slack_article(
                 canonical_url=str(source["canonical_url"]),
             ),
             "created_at": _slack_timestamp_to_iso(event.get("ts")),
+            "supersedes_id": source_manifest_supersedes_id(
+                source_manifest,
+                artifact_kind="document",
+            ),
             "force_kind": "document",
         },
         store=store,
@@ -551,6 +583,7 @@ def _ingest_slack_article(
         source=source,
         evaluation=evaluation,
         knowledge=knowledge,
+        source_manifest=source_manifest,
         operator_note=operator_note,
         event=event,
         payload=payload,
@@ -577,6 +610,7 @@ def _ingest_slack_article(
             "persistence_state": persistence_state,
             "raw_document_id": raw_document_id,
             "knowledge_record_id": knowledge_capture["id"],
+            "source_manifest": source_manifest,
             "warnings": warnings,
         },
     )
@@ -588,6 +622,7 @@ def _ingest_slack_article(
         "evaluation": evaluation,
         "raw_capture": raw_capture,
         "knowledge_capture": knowledge_capture,
+        "source_manifest": source_manifest,
         "persistence_state": persistence_state,
     }
 
@@ -636,6 +671,13 @@ def _build_supplied_article_source(
     return source
 
 
+def _safe_canonical_article_url(url: str) -> str:
+    try:
+        return canonicalize_article_url(url)
+    except ValueError:
+        return str(url or "").strip()
+
+
 def _store_article_knowledge_record(
     *,
     namespace: str,
@@ -645,6 +687,7 @@ def _store_article_knowledge_record(
     source: dict[str, object],
     evaluation: dict[str, object],
     knowledge: dict[str, object],
+    source_manifest: dict[str, object],
     operator_note: str | None,
     event: dict[str, object],
     payload: dict[str, object],
@@ -653,6 +696,14 @@ def _store_article_knowledge_record(
     config: NeuroCoreConfig,
 ) -> dict[str, object]:
     content = str(knowledge["content"])
+    knowledge_source_manifest = build_source_manifest(
+        store=store,
+        namespace=namespace,
+        source_type="article_knowledge",
+        source_url=str(source["canonical_url"]),
+        content_fingerprint=str(evaluation["content_fingerprint"]),
+        content_provenance=str(source.get("content_provenance") or "fetched"),
+    )
     metadata = {
         "platform": "slack",
         "team_id": payload.get("team_id"),
@@ -665,15 +716,20 @@ def _store_article_knowledge_record(
         "summary": knowledge["summary"],
         "key_claims": list(knowledge["key_claims"]),
         "techniques": list(knowledge["techniques"]),
+        "security_entities": dict(knowledge["security_entities"]),
+        "mitigations": list(knowledge["mitigations"]),
+        "open_questions": list(knowledge["open_questions"]),
+        "source_backed_claims": list(knowledge["source_backed_claims"]),
         "quality": dict(knowledge["quality"]),
         "raw_document_id": raw_document_id,
         "source_content_fingerprint": evaluation["content_fingerprint"],
+        "source_manifest": knowledge_source_manifest,
+        "raw_source_manifest": source_manifest,
         "operator_note": operator_note,
         "content_provenance": str(source.get("content_provenance") or "fetched"),
     }
     if source.get("content_provenance") == "supplied":
         metadata["supplied_article_content"] = True
-    source_fingerprint = str(evaluation["content_fingerprint"])
     content_fingerprint = _record_fingerprint(content)
     signature = f"record:article_knowledge:markdown:{sensitivity}"
     existing_id = store.find_duplicate(namespace, content_fingerprint, signature)
@@ -732,9 +788,12 @@ def _store_article_knowledge_record(
             kind="knowledge",
             canonical_url=str(source["canonical_url"]),
         ),
+        supersedes_id=source_manifest_supersedes_id(
+            knowledge_source_manifest,
+            artifact_kind="record",
+        ),
     )
     store.save_record(record, signature=signature)
-    del source_fingerprint
     return attach_store_warnings(
         {
             "id": record.id,

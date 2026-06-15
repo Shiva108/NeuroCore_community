@@ -1,5 +1,3 @@
-import json
-
 from fastapi.testclient import TestClient
 
 from neurocore.adapters.http_api import create_app

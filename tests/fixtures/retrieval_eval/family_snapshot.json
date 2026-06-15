@@ -1,0 +1,238 @@
+{
+  "config": {
+    "allowed_buckets": [
+      "research",
+      "planning",
+      "ops"
+    ],
+    "chunk_overlap_tokens": 1,
+    "default_namespace": "project-alpha",
+    "default_sensitivity": "standard",
+    "max_atomic_tokens": 5,
+    "max_chunk_tokens": 6,
+    "semantic_backend": "none",
+    "semantic_model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "target_chunk_tokens": 5
+  },
+  "fixture": "family",
+  "queries": [
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 1,
+          "policy_allowed": 4,
+          "ranked": 1,
+          "return_mode_allowed": 1,
+          "selected_post_aggregate": 1,
+          "selected_pre_aggregate": 1,
+          "semantic_scored": 1,
+          "store": 4
+        },
+        "filter_counts": {
+          "excluded_return_mode": 3,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": true,
+          "configured_backend": "none",
+          "warning_emitted": false
+        },
+        "return_mode": "record_only",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 0,
+          "record": 1
+        },
+        "semantic_mode": "hybrid"
+      },
+      "family": "title-match",
+      "matched_by": [
+        "hybrid"
+      ],
+      "name": "title_match_lookup",
+      "request": {
+        "allowed_buckets": [
+          "research"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "incident triage",
+        "return_mode": "record_only",
+        "sensitivity_ceiling": "standard",
+        "top_k": 1
+      },
+      "result_ids": [
+        "rec-e6ef3c3c-2776-5c8a-b60b-1a96d0496f42"
+      ],
+      "warnings": []
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 0,
+          "policy_allowed": 1,
+          "ranked": 1,
+          "return_mode_allowed": 1,
+          "selected_post_aggregate": 1,
+          "selected_pre_aggregate": 1,
+          "semantic_scored": 1,
+          "store": 1
+        },
+        "filter_counts": {
+          "excluded_return_mode": 0,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": true,
+          "configured_backend": "none",
+          "warning_emitted": false
+        },
+        "return_mode": "record_only",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 0,
+          "record": 1
+        },
+        "semantic_mode": "hybrid"
+      },
+      "family": "alias",
+      "matched_by": [
+        "hybrid"
+      ],
+      "name": "alias_lookup",
+      "request": {
+        "allowed_buckets": [
+          "planning"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "night shift",
+        "return_mode": "record_only",
+        "sensitivity_ceiling": "standard",
+        "top_k": 1
+      },
+      "result_ids": [
+        "rec-8af43207-59e8-58d2-aa41-b3931cf68c8e"
+      ],
+      "warnings": []
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 1,
+          "policy_allowed": 4,
+          "ranked": 2,
+          "return_mode_allowed": 3,
+          "selected_post_aggregate": 1,
+          "selected_pre_aggregate": 1,
+          "semantic_scored": 3,
+          "store": 4
+        },
+        "filter_counts": {
+          "excluded_return_mode": 1,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": true,
+          "configured_backend": "none",
+          "warning_emitted": false
+        },
+        "return_mode": "chunk_only",
+        "selected_kinds": {
+          "chunk": 1,
+          "document": 0,
+          "record": 0
+        },
+        "semantic_mode": "hybrid"
+      },
+      "family": "chunk-dilution",
+      "matched_by": [
+        "hybrid"
+      ],
+      "name": "chunk_dilution_lookup",
+      "request": {
+        "allowed_buckets": [
+          "research"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "dilution probe",
+        "return_mode": "chunk_only",
+        "sensitivity_ceiling": "standard",
+        "top_k": 1
+      },
+      "result_ids": [
+        "chunk-7140914b-899d-51fd-874d-b93717f89731"
+      ],
+      "warnings": []
+    },
+    {
+      "diagnostics": {
+        "candidate_counts": {
+          "metadata_matched": 0,
+          "policy_allowed": 0,
+          "ranked": 0,
+          "return_mode_allowed": 0,
+          "selected_post_aggregate": 0,
+          "selected_pre_aggregate": 0,
+          "semantic_scored": 0,
+          "store": 0
+        },
+        "filter_counts": {
+          "excluded_return_mode": 0,
+          "excluded_sealed": 0,
+          "excluded_sensitivity": 0,
+          "excluded_source_type": 0,
+          "excluded_tags_all": 0,
+          "excluded_tags_any": 0,
+          "excluded_time_range": 0
+        },
+        "ranker": {
+          "active": false,
+          "configured_backend": "none",
+          "warning_emitted": true
+        },
+        "return_mode": "hybrid",
+        "selected_kinds": {
+          "chunk": 0,
+          "document": 0,
+          "record": 0
+        },
+        "semantic_mode": "metadata-only"
+      },
+      "family": "hard-negative",
+      "matched_by": [],
+      "name": "hard_negative_lookup",
+      "request": {
+        "allowed_buckets": [
+          "ops"
+        ],
+        "include_diagnostics": true,
+        "namespace": "project-alpha",
+        "query_text": "nonexistent artifact",
+        "return_mode": "hybrid",
+        "sensitivity_ceiling": "standard",
+        "top_k": 3
+      },
+      "result_ids": [],
+      "warnings": [
+        "Semantic ranker unavailable; using metadata-only fallback."
+      ]
+    }
+  ]
+}

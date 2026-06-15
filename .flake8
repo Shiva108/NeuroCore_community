@@ -1,6 +1,6 @@
 [flake8]
-max-line-length = 160
-extend-ignore = E203
+max-line-length = 120
+extend-ignore = E203,E501
 exclude =
     .git,
     .venv,
@@ -10,5 +10,3 @@ exclude =
     src/neurocore.egg-info
 per-file-ignores =
     scripts/*.py:E402
-    tests/interfaces/test_article_ingest_http.py:F401
-    tests/interfaces/test_ingest.py:F401

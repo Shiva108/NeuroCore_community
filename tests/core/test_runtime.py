@@ -9,6 +9,9 @@ from neurocore.runtime import (
     build_summarizer,
     resolve_reporting_plan,
 )
+from neurocore.storage.in_memory import InMemoryStore
+from neurocore.storage.mirrored_store import MirroredStore
+from neurocore.storage.router import RoutedStore
 
 
 def test_build_store_selects_postgres_backends_for_neon_runtime(monkeypatch):
@@ -62,7 +65,7 @@ def test_build_store_reuses_shared_postgres_store_when_urls_match(monkeypatch):
     store = build_store(config)
 
     assert created_urls == ["postgresql://shared-host/db"]
-    assert store.primary_store is store.sealed_store
+    assert store.__class__.__name__ == "FakePostgresStore"
 
 
 def test_build_production_backend_choice_redacts_urls():
@@ -137,6 +140,44 @@ def test_build_store_selects_mirrored_store_for_dual_backend_runtime(monkeypatch
     ]
 
 
+def test_build_store_avoids_double_wrapping_shared_cloud_store_in_mirror_mode(
+    monkeypatch,
+):
+    sqlite_paths: list[str] = []
+    postgres_urls: list[str] = []
+
+    class FakeSQLiteStore:
+        def __init__(self, database_path: str) -> None:
+            sqlite_paths.append(str(database_path))
+
+    class FakePostgresStore:
+        def __init__(self, database_url: str) -> None:
+            postgres_urls.append(database_url)
+
+    monkeypatch.setattr("neurocore.runtime.SQLiteStore", FakeSQLiteStore)
+    monkeypatch.setattr("neurocore.runtime.PostgresStore", FakePostgresStore)
+
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        storage_backend="mirror",
+        mirror_read_preference="local",
+        primary_store_path="data/local.db",
+        sealed_store_path="data/local-sealed.db",
+        production_backend_provider="supabase",
+        production_database_url="postgresql://shared-host/db",
+        production_sealed_database_url="postgresql://shared-host/db",
+    )
+
+    store = build_store(config)
+
+    assert store.__class__.__name__ == "MirroredStore"
+    assert sqlite_paths == ["data/local.db", "data/local-sealed.db"]
+    assert postgres_urls == ["postgresql://shared-host/db"]
+    assert store.cloud_store.__class__.__name__ == "FakePostgresStore"
+
+
 def test_build_storage_backend_status_reports_mirror_mode():
     config = NeuroCoreConfig(
         default_namespace="project-alpha",
@@ -157,6 +198,9 @@ def test_build_storage_backend_status_reports_mirror_mode():
     assert payload["read_preference"] == "local"
     assert payload["local_configured"] is True
     assert payload["cloud_configured"] is True
+    assert payload["cloud_primary_configured"] is True
+    assert payload["cloud_sealed_configured"] is True
+    assert payload["full_dual_write_configured"] is True
     assert payload["cloud_provider"] == "supabase"
     assert payload["primary_target"] == "postgresql://primary-host:5432"
 
@@ -215,8 +259,84 @@ def test_build_storage_backend_status_reports_local_only_sealed_mode():
     assert payload["mode"] == "mirror"
     assert payload["sealed_mode"] == "local_only"
     assert payload["cloud_configured"] is True
+    assert payload["cloud_primary_configured"] is True
+    assert payload["cloud_sealed_configured"] is False
+    assert payload["full_dual_write_configured"] is False
     assert payload["primary_target"] == "postgresql://primary-host:5432"
     assert payload["sealed_target"] is None
+
+
+def test_build_storage_backend_status_surfaces_live_mirror_parity_state():
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        storage_backend="mirror",
+        mirror_read_preference="local",
+        primary_store_path="data/local.db",
+        sealed_store_path="data/local-sealed.db",
+        production_backend_provider="supabase",
+        production_database_url="postgresql://primary-host/db",
+        production_sealed_database_url="postgresql://sealed-host/db",
+    )
+    store = MirroredStore(
+        local_store=RoutedStore(
+            primary_store=InMemoryStore(),
+            sealed_store=InMemoryStore(),
+        ),
+        cloud_store=RoutedStore(
+            primary_store=InMemoryStore(),
+            sealed_store=InMemoryStore(),
+        ),
+        read_preference="local",
+    )
+    store._local_degraded = True
+    store._last_local_error = "sqlite locked"
+    store._last_persistence_state = "partial"
+    store._last_parity_state = "degraded"
+    store._last_full_mirror_state = "stored"
+    store._parity_verified = False
+    store._reconciliation_pending = True
+    store._automatic_reconciliation_attempted = True
+    store._last_reconciliation_direction = "cloud_to_local"
+    store._last_reconciliation_outcome = "failed"
+    store._last_parity_check = "2026-06-06T12:00:00+00:00"
+    store._last_bidirectional_divergence = True
+    store._last_destructive_repair_risk = True
+    store._last_recommended_safe_action = "reconcile_union"
+    store._last_conflict_counts = {"records": 1}
+    store._last_repair_mode = "union"
+    store._last_sync_action = "verify_parity"
+    store._last_sync_started_at = "2026-06-06T12:00:01+00:00"
+    store._last_sync_finished_at = "2026-06-06T12:00:02+00:00"
+    store._last_sync_pid = 4242
+    store._last_sync_status = "success"
+
+    payload = build_storage_backend_status(config, store=store).to_dict()
+
+    assert payload["local_degraded"] is True
+    assert payload["last_local_error"] == "sqlite locked"
+    assert payload["last_persistence_state"] == "partial"
+    assert payload["last_parity_state"] == "degraded"
+    assert payload["last_full_mirror_state"] == "stored"
+    assert payload["parity_verified"] is False
+    assert payload["reconciliation_pending"] is True
+    assert payload["automatic_reconciliation_attempted"] is True
+    assert payload["last_reconciliation_direction"] == "cloud_to_local"
+    assert payload["last_reconciliation_outcome"] == "failed"
+    assert payload["last_parity_check"] == "2026-06-06T12:00:00+00:00"
+    assert payload["bidirectional_divergence"] is True
+    assert payload["destructive_repair_risk"] is True
+    assert payload["recommended_safe_action"] == "reconcile_union"
+    assert payload["conflict_counts"] == {"records": 1}
+    assert payload["repair_mode"] == "union"
+    assert payload["last_sync_action"] == "verify_parity"
+    assert payload["last_sync_started_at"] == "2026-06-06T12:00:01+00:00"
+    assert payload["last_sync_finished_at"] == "2026-06-06T12:00:02+00:00"
+    assert payload["last_sync_pid"] == 4242
+    assert payload["last_sync_status"] == "success"
+    assert payload["last_sync_error"] is None
+    assert payload["active_reconciliation"] is False
 
 
 def test_build_summarizer_rejects_duplicate_model_names():

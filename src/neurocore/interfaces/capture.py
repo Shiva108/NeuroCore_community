@@ -23,6 +23,10 @@ from neurocore.ingest.normalize import (
     count_tokens,
     generate_stable_id,
 )
+from neurocore.ingest.source_tracking import (
+    build_source_manifest,
+    source_manifest_supersedes_id,
+)
 from neurocore.runtime import build_summarizer
 from neurocore.storage.base import BaseStore
 
@@ -64,6 +68,7 @@ def capture_memory(
 ) -> dict[str, object]:
     plan = _build_capture_plan(
         request,
+        store=store,
         config=config,
         action_item_generator=action_item_generator,
     )
@@ -178,20 +183,23 @@ def capture_many(
     if record_entries:
         try:
             store.save_records_bulk(record_entries)
+            record_status = store.pop_operation_status()
             for item in record_prepared:
+                payload = _capture_response(
+                    item_id=item.record.id,
+                    kind="record",
+                    namespace=item.plan.namespace,
+                    bucket=item.plan.bucket,
+                    deduplicated=False,
+                    chunk_count=0,
+                    storage_outcome="record-stored",
+                )
+                _attach_operation_status(payload, record_status)
                 results.append(
                     _batch_result(
                         item.index,
                         ok=True,
-                        payload=_capture_response(
-                            item_id=item.record.id,
-                            kind="record",
-                            namespace=item.plan.namespace,
-                            bucket=item.plan.bucket,
-                            deduplicated=False,
-                            chunk_count=0,
-                            storage_outcome="record-stored",
-                        ),
+                        payload=payload,
                     )
                 )
         except Exception as exc:
@@ -202,20 +210,23 @@ def capture_many(
     if document_entries:
         try:
             store.save_documents_bulk(document_entries)
+            document_status = store.pop_operation_status()
             for item in document_prepared:
+                payload = _capture_response(
+                    item_id=item.document.id,
+                    kind="document",
+                    namespace=item.plan.namespace,
+                    bucket=item.plan.bucket,
+                    deduplicated=False,
+                    chunk_count=len(item.chunks),
+                    storage_outcome="document-stored",
+                )
+                _attach_operation_status(payload, document_status)
                 results.append(
                     _batch_result(
                         item.index,
                         ok=True,
-                        payload=_capture_response(
-                            item_id=item.document.id,
-                            kind="document",
-                            namespace=item.plan.namespace,
-                            bucket=item.plan.bucket,
-                            deduplicated=False,
-                            chunk_count=len(item.chunks),
-                            storage_outcome="document-stored",
-                        ),
+                        payload=payload,
                     )
                 )
         except Exception as exc:
@@ -239,6 +250,7 @@ def capture_many(
 def _build_capture_plan(
     request: dict[str, object],
     *,
+    store: BaseStore | None = None,
     config: NeuroCoreConfig,
     action_item_generator: Callable[[str], list[str]] | None = None,
 ) -> CapturePlan:
@@ -279,6 +291,14 @@ def _build_capture_plan(
     request_tags = _merge_tags(tuple(request.get("tags", ())), enriched_tags)
     document_summary = _optional_summary_text(request.get("summary"))
     chunk_summary_map = _parse_chunk_summary_map(request.get("chunk_summaries"))
+    metadata = _enrich_source_manifest(
+        metadata,
+        store=store,
+        namespace=namespace,
+        source_type=source_type,
+        fingerprint=fingerprint,
+        kind=kind,
+    )
     return CapturePlan(
         content=content,
         namespace=namespace,
@@ -305,9 +325,9 @@ def _prepare_capture(
     config: NeuroCoreConfig,
     action_item_generator: Callable[[str], list[str]] | None = None,
 ) -> PreparedCapture:
-    del store
     plan = _build_capture_plan(
         request,
+        store=store,
         config=config,
         action_item_generator=action_item_generator,
     )
@@ -487,7 +507,11 @@ def _document_from_request(
         external_id=request.get("external_id"),
         tags=plan.request_tags,
         summary=plan.document_summary,
-        supersedes_id=request.get("supersedes_id"),
+        supersedes_id=request.get("supersedes_id")
+        or source_manifest_supersedes_id(
+            plan.metadata.get("source_manifest"),
+            artifact_kind="document",
+        ),
     )
 
 
@@ -507,6 +531,7 @@ def _capture_response(
         "namespace": namespace,
         "bucket": bucket,
         "stored": True,
+        "persistence_state": "deduplicated" if deduplicated else "stored",
         "storage_outcome": storage_outcome,
         "deduplicated": deduplicated,
         "chunk_count": chunk_count,
@@ -526,6 +551,33 @@ def _parse_request_created_at(value: object) -> datetime | None:
     if isinstance(value, str):
         return datetime.fromisoformat(value)
     raise ValueError("created_at must be an ISO timestamp or datetime")
+
+
+def _enrich_source_manifest(
+    metadata: dict[str, object],
+    *,
+    store: BaseStore | None,
+    namespace: str,
+    source_type: str,
+    fingerprint: str,
+    kind: str,
+) -> dict[str, object]:
+    if kind != "document" or store is None or "source_manifest" in metadata:
+        return metadata
+    source_url = str(
+        metadata.get("canonical_url") or metadata.get("source_url") or ""
+    ).strip()
+    if not source_url:
+        return metadata
+    manifest = build_source_manifest(
+        store=store,
+        namespace=namespace,
+        source_type=source_type,
+        source_url=source_url,
+        content_fingerprint=fingerprint,
+        content_provenance=str(metadata.get("content_provenance") or "captured"),
+    )
+    return {**metadata, "source_manifest": manifest}
 
 
 def _merge_duplicate_metadata(
@@ -598,10 +650,45 @@ def attach_store_warnings(
     store: BaseStore,
 ) -> dict[str, object]:
     """Attach transient store warnings to a response payload."""
+    _attach_operation_status(payload, store.pop_operation_status())
     warnings = list(payload.get("warnings") or [])
     warnings.extend(store.pop_warnings())
     payload["warnings"] = list(dict.fromkeys(str(item) for item in warnings if item))
+    if "persistence_state" not in payload:
+        if payload.get("deduplicated"):
+            payload["persistence_state"] = "deduplicated"
+        elif (
+            payload.get("stored") is True
+            or payload.get("updated") is True
+            or payload.get("deleted") is True
+        ):
+            payload["persistence_state"] = "stored"
     return payload
+
+
+def _attach_operation_status(
+    payload: dict[str, object],
+    operation_status: dict[str, object],
+) -> None:
+    if not operation_status:
+        return
+    persistence_state = operation_status.get("persistence_state")
+    if persistence_state and payload.get("persistence_state") not in {
+        "deduplicated",
+        "rejected",
+    }:
+        payload["persistence_state"] = str(persistence_state)
+    mirror_status = operation_status.get("mirror_status")
+    if isinstance(mirror_status, dict) and mirror_status:
+        payload["mirror_status"] = dict(mirror_status)
+    for key in (
+        "parity_state",
+        "reconciliation_attempted",
+        "reconciliation_direction",
+    ):
+        value = operation_status.get(key)
+        if value is not None:
+            payload[key] = value
 
 
 def _batch_result(

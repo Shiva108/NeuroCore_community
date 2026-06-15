@@ -1,0 +1,23 @@
+{
+  "name": "Daily Memory Triage",
+  "category": "skills",
+  "description": "Reusable skill for capturing daily notes, querying recent context, and surfacing follow-up actions in NeuroCore.",
+  "owner": {
+    "name": "NeuroCore"
+  },
+  "version": "1.0.0",
+  "requires": {
+    "neurocore": true,
+    "tools": [
+      "Codex or Claude Code"
+    ]
+  },
+  "tags": [
+    "daily-review",
+    "capture",
+    "query"
+  ],
+  "difficulty": "beginner",
+  "estimated_time": "15 minutes",
+  "curation": "open"
+}

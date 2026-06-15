@@ -2,60 +2,91 @@
 
 ## Workflow
 
-Start by reading the active contract docs:
+NeuroCore is built contract-first. Before changing behavior, review:
 
 - `docs/ssd/architecture.md`
 - `docs/ssd/specification.md`
 - `docs/ssd/implementation-plan.md`
 - `docs/ssd/source-matrix.md`
 
-Keep behavior, tests, and SSD docs aligned. Prefer small, reviewable changes.
-Use the public setup guides in `docs/` for environment and troubleshooting
-details that do not belong in the SSD contract set.
+Prefer small, focused changes that keep the SSD package and implementation in
+sync.
 
-## Local Setup
+The public repo accepts both core-package changes and ecosystem contributions.
+The core package lives under `src/neurocore/`; reusable ecosystem work belongs
+in the top-level contribution surfaces documented below.
+
+## Local Development
+
+1. Bootstrap the local workspace:
 
 ```bash
 python scripts/bootstrap.py
+```
+
+2. Activate the virtual environment:
+
+```bash
 source .venv/bin/activate
 ```
 
-The bootstrap script creates `.venv`, installs the package in editable mode,
-and writes a local operator env file outside the repo checkout.
-
-Optional reference material:
-
-- `docs/setup.md`
-- `docs/configuration.md`
-- `docs/troubleshooting.md`
-
-## Validation
-
-Run the standard checks before opening a PR:
+3. Run the standard checks:
 
 ```bash
 make test
 make lint
 make validate
-python scripts/generate_openapi_snapshot.py --check
+make openapi-check
 ```
 
-## Contribution Expectations
+4. If you change architecture boundaries or dependency direction, also run:
 
-- Add or update tests with every behavior change.
-- Keep public CLI, HTTP, and MCP behavior aligned when changing shared
+```bash
+make sentrux
+```
+
+## Reference Stack
+
+The default local operator path is the mirror-first security profile documented
+in [docs/reference-stack.md](docs/reference-stack.md). The hosted companion
+path is documented in [docs/hosted-stack.md](docs/hosted-stack.md).
+
+## Implementation Rules
+
+- Write or update tests with every behavior change.
+- Keep public contracts aligned with the SSD docs.
+- Keep `docs/ssd/source-matrix.md` updated when repo guidance or named sources
+  change implementation expectations.
+- Preserve parity across library, CLI, HTTP, and MCP request/response
   contracts.
-- Do not commit secrets, local env files, database files, or runtime artifacts.
-- Update the SSD docs when a public contract or supported workflow changes.
-- Prefer generic, community-safe examples over personal or provider-specific
-  setup guidance.
-- Sanitize screenshots, logs, and sample payloads before including them in a PR.
+- Keep optional surfaces behind explicit config gates.
 
-## Pull Requests
+## Ecosystem Categories
 
-Include:
+| Category | Purpose | Review Mode |
+| --- | --- | --- |
+| `extensions/` | Higher-level builds that compose multiple NeuroCore capabilities | Curated |
+| `primitives/` | Reusable patterns depended on by multiple ecosystem modules | Curated |
+| `recipes/` | Standalone workflows or walkthroughs built on current core behavior | Open |
+| `skills/` | Reusable prompt and skill packs for AI clients using NeuroCore | Open |
+| `dashboards/` | UI shells or frontend add-ons that build on the reference app | Open |
+| `integrations/` | External connectors and ingestion or delivery surfaces | Open |
+| `schemas/` | Supplemental schema patterns and storage extensions | Open |
 
-- a short change summary
-- validation evidence
-- doc updates when public behavior changes
-- sample output or screenshots for user-facing changes
+Every ecosystem contribution must include:
+
+- `README.md`
+- `metadata.json`
+- any category-specific artifact required by the template, such as `SKILL.md`
+
+Use each category's `_template/` folder as the starting point. `extensions/`
+and `primitives/` must declare `"curation": "curated"` in `metadata.json`.
+
+## Security and Publication
+
+- Never commit secrets or local-only environment files.
+- Use `.env.example`, `secrets.json.example`, and `preferences.json.example` as
+  checked-in references for local configuration.
+- Sanitize screenshots, logs, sample payloads, and provider URLs before opening
+  a PR.
+- Keep the community repo free of private operator data and internal-only docs.

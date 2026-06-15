@@ -76,6 +76,94 @@ def test_capture_memory_returns_document_contract_and_deduplicates_repeated_capt
     assert len(store.chunks) == chunk_total
 
 
+def test_capture_memory_adds_source_manifest_to_source_backed_documents():
+    store = InMemoryStore()
+    config = build_config()
+
+    response = capture_memory(
+        {
+            "namespace": "project-alpha",
+            "bucket": "research",
+            "sensitivity": "standard",
+            "content": "short stable note",
+            "content_format": "markdown",
+            "source_type": "imported_doc",
+            "title": "Imported doc",
+            "metadata": {"source_url": "https://example.invalid/doc"},
+            "force_kind": "document",
+        },
+        store=store,
+        config=config,
+    )
+
+    stored = store.get_document(response["id"])
+
+    assert stored is not None
+    assert stored.metadata["source_manifest"]["source_url"] == (
+        "https://example.invalid/doc"
+    )
+    assert stored.metadata["source_manifest"]["delta_state"] == "new"
+
+
+def test_capture_memory_marks_changed_source_backed_documents():
+    store = InMemoryStore()
+    config = build_config()
+    base_request = {
+        "namespace": "project-alpha",
+        "bucket": "research",
+        "sensitivity": "standard",
+        "content": "first imported source note",
+        "content_format": "markdown",
+        "source_type": "imported_doc",
+        "title": "Imported doc",
+        "metadata": {"source_url": "https://example.invalid/doc"},
+        "force_kind": "document",
+    }
+
+    first = capture_memory(base_request, store=store, config=config)
+    changed = capture_memory(
+        {
+            **base_request,
+            "content": "second imported source note with changed content",
+        },
+        store=store,
+        config=config,
+    )
+
+    changed_document = store.get_document(changed["id"])
+
+    assert changed_document is not None
+    assert changed_document.metadata["source_manifest"]["delta_state"] == "changed"
+    assert (
+        changed_document.metadata["source_manifest"]["prior_document_id"] == first["id"]
+    )
+    assert changed_document.supersedes_id == first["id"]
+
+
+def test_capture_memory_marks_repeated_source_backed_documents_unchanged():
+    store = InMemoryStore()
+    config = build_config()
+    request = {
+        "namespace": "project-alpha",
+        "bucket": "research",
+        "sensitivity": "standard",
+        "content": "stable imported source note",
+        "content_format": "markdown",
+        "source_type": "imported_doc",
+        "title": "Imported doc",
+        "metadata": {"source_url": "https://example.invalid/doc"},
+        "force_kind": "document",
+    }
+
+    first = capture_memory(request, store=store, config=config)
+    second = capture_memory(request, store=store, config=config)
+    stored = store.get_document(first["id"])
+
+    assert second["deduplicated"] is True
+    assert stored is not None
+    assert stored.metadata["source_manifest"]["delta_state"] == "unchanged"
+
+
 def test_capture_memory_honors_force_kind_for_document_capture():
     store = InMemoryStore()
     config = build_config()

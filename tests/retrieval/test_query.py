@@ -277,6 +277,7 @@ def test_query_memory_document_aggregate_surfaces_parent_document_id():
 
     assert response["results"][0]["kind"] == "document"
     assert response["results"][0]["id"] == capture["id"]
+    assert response["results"][0]["document_id"] == capture["id"]
 
 
 def test_query_memory_document_aggregate_diagnostics_track_pre_and_post_counts():

@@ -36,14 +36,23 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 class SQLiteStore(BaseStore):
+    _BUSY_TIMEOUT_MS = 30_000
+
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._ensure_schema()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
+        connection = sqlite3.connect(
+            self.database_path,
+            timeout=self._BUSY_TIMEOUT_MS / 1000,
+        )
         connection.row_factory = sqlite3.Row
+        connection.execute(f"PRAGMA busy_timeout = {self._BUSY_TIMEOUT_MS}")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA synchronous = NORMAL")
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def _ensure_schema(self) -> None:

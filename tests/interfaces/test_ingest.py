@@ -1,8 +1,5 @@
 import json
 
-from neurocore.storage.local_only_sealed_mirrored_store import (
-    LocalOnlySealedMirroredStore,
-)
 from neurocore.storage.mirrored_store import MirroredStore
 from neurocore.storage.router import RoutedStore
 from neurocore.core.config import NeuroCoreConfig
@@ -147,6 +144,11 @@ def test_ingest_slack_article_captures_raw_document_and_knowledge_record(monkeyp
         == "https://example.invalid/articles/ldap"
     )
     assert knowledge_record.metadata["raw_document_id"] == raw_document.id
+    assert response["source_manifest"]["delta_state"] == "new"
+    assert raw_document.metadata["source_manifest"]["delta_state"] == "new"
+    assert knowledge_record.metadata["source_manifest"]["delta_state"] == "new"
+    assert knowledge_record.metadata["security_entities"]
+    assert knowledge_record.metadata["source_backed_claims"]
 
 
 def test_ingest_slack_distill_slash_command_reuses_article_pipeline(monkeypatch):
@@ -455,6 +457,10 @@ def test_ingest_slack_article_rejects_low_quality_content_and_records_audit(
     assert store.audit_events[-1]["details"]["canonical_url"] == (
         "https://example.invalid/navigation-shell"
     )
+    assert store.audit_events[-1]["details"]["source_manifest"]["delta_state"] == (
+        "rejected"
+    )
+    assert response["source_manifest"]["delta_state"] == "rejected"
 
 
 def test_ingest_slack_article_is_idempotent_for_repeated_submissions(monkeypatch):
@@ -515,6 +521,61 @@ def test_ingest_slack_article_is_idempotent_for_repeated_submissions(monkeypatch
     assert first["raw_capture"]["id"] == second["raw_capture"]["id"]
     assert first["knowledge_capture"]["id"] == second["knowledge_capture"]["id"]
     assert second["persistence_state"] == "deduplicated"
+    assert second["source_manifest"]["delta_state"] == "unchanged"
+    assert len(store.list_documents()) == 1
+    assert len(store.list_records()) == 1
+
+
+def test_ingest_slack_article_tracks_changed_source_content():
+    store = InMemoryStore()
+    request = {
+        "type": "event_callback",
+        "team_id": "T123",
+        "event": {
+            "type": "message",
+            "channel": "C123",
+            "user": "U123",
+            "text": "article: https://example.invalid/articles/ldap",
+            "ts": "1713897900.000100",
+        },
+        "article_content": SUPPLIED_ARTICLE_CONTENT,
+        "article_content_format": "markdown",
+        "article_title": "Reusable LDAP Enumeration",
+        "bucket": "research",
+    }
+
+    first = ingest_slack_event(request, store=store, config=build_config())
+    changed = ingest_slack_event(
+        {
+            **request,
+            "event": {
+                **request["event"],
+                "ts": "1713898000.000100",
+            },
+            "article_content": (
+                SUPPLIED_ARTICLE_CONTENT
+                + " OAuth token validation and API evidence review should be "
+                "added before this playbook is reused in future investigations."
+            ),
+        },
+        store=store,
+        config=build_config(),
+    )
+
+    first_raw = store.get_document(first["raw_capture"]["id"])
+    changed_raw = store.get_document(changed["raw_capture"]["id"])
+    changed_knowledge = store.get_record(changed["knowledge_capture"]["id"])
+
+    assert changed["source_manifest"]["delta_state"] == "changed"
+    assert changed["source_manifest"]["prior_document_id"] == first["raw_capture"]["id"]
+    assert first_raw is not None
+    assert changed_raw is not None
+    assert changed_knowledge is not None
+    assert changed_raw.id != first_raw.id
+    assert changed_raw.supersedes_id == first_raw.id
+    assert changed_knowledge.supersedes_id == first["knowledge_capture"]["id"]
+    assert len(store.list_documents()) == 2
+    assert len(store.list_records()) == 2
 
 
 def test_ingest_slack_article_reports_partial_mirror_writes(monkeypatch):

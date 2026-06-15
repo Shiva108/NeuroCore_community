@@ -1,0 +1,39 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeuroCore dashboard mock screenshot</title>
+  <desc id="desc">Dashboard mockup with metrics, recent documents, and backend status.</desc>
+  <rect width="1280" height="720" fill="#F1F5F9"/>
+  <rect x="40" y="40" width="1200" height="640" rx="30" fill="#FFFFFF"/>
+  <rect x="40" y="40" width="1200" height="98" rx="30" fill="#14532D"/>
+  <text x="88" y="100" fill="#ECFDF5" font-family="Verdana, sans-serif" font-size="36" font-weight="700">NeuroCore Dashboard</text>
+  <text x="900" y="100" fill="#BBF7D0" font-family="Verdana, sans-serif" font-size="22">Provider: configured</text>
+  <rect x="88" y="180" width="250" height="120" rx="24" fill="#ECFCCB"/>
+  <text x="118" y="222" fill="#365314" font-family="Verdana, sans-serif" font-size="22" font-weight="700">Records</text>
+  <text x="118" y="270" fill="#1A2E05" font-family="Verdana, sans-serif" font-size="48" font-weight="700">248</text>
+  <rect x="366" y="180" width="250" height="120" rx="24" fill="#DBEAFE"/>
+  <text x="396" y="222" fill="#1E3A8A" font-family="Verdana, sans-serif" font-size="22" font-weight="700">Documents</text>
+  <text x="396" y="270" fill="#172554" font-family="Verdana, sans-serif" font-size="48" font-weight="700">63</text>
+  <rect x="644" y="180" width="250" height="120" rx="24" fill="#FCE7F3"/>
+  <text x="674" y="222" fill="#9D174D" font-family="Verdana, sans-serif" font-size="22" font-weight="700">Summarized</text>
+  <text x="674" y="270" fill="#500724" font-family="Verdana, sans-serif" font-size="48" font-weight="700">41</text>
+  <rect x="922" y="180" width="250" height="120" rx="24" fill="#FEF3C7"/>
+  <text x="952" y="222" fill="#92400E" font-family="Verdana, sans-serif" font-size="22" font-weight="700">Archived</text>
+  <text x="952" y="270" fill="#78350F" font-family="Verdana, sans-serif" font-size="48" font-weight="700">7</text>
+  <rect x="88" y="340" width="540" height="270" rx="26" fill="#0F172A"/>
+  <text x="124" y="392" fill="#F8FAFC" font-family="Verdana, sans-serif" font-size="30" font-weight="700">Recent Documents</text>
+  <text x="124" y="442" fill="#CBD5E1" font-family="Verdana, sans-serif" font-size="20">Architecture decision log / planning</text>
+  <text x="124" y="482" fill="#CBD5E1" font-family="Verdana, sans-serif" font-size="20">External research synthesis / research</text>
+  <text x="124" y="522" fill="#CBD5E1" font-family="Verdana, sans-serif" font-size="20">Slack ingestion digest / ops</text>
+  <text x="124" y="562" fill="#CBD5E1" font-family="Verdana, sans-serif" font-size="20">Policy review memo / work</text>
+  <rect x="662" y="340" width="510" height="286" rx="26" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="698" y="392" fill="#0F172A" font-family="Verdana, sans-serif" font-size="30" font-weight="700">Publication notes</text>
+  <text x="698" y="440" fill="#334155" font-family="Verdana, Arial, sans-serif" font-size="18">• Secrets stay local in ignored files</text>
+  <text x="698" y="478" fill="#334155" font-family="Verdana, Arial, sans-serif" font-size="18">• CI runs black, flake8, pytest, governance</text>
+  <text x="698" y="516" fill="#334155" font-family="Verdana, Arial, sans-serif" font-size="18">
+    <tspan x="698" dy="0">• Beginner-friendly setup and</tspan>
+    <tspan x="722" dy="24">troubleshooting docs</tspan>
+  </text>
+  <text x="698" y="572" fill="#334155" font-family="Verdana, Arial, sans-serif" font-size="18">
+    <tspan x="698" dy="0">• README screenshots communicate</tspan>
+    <tspan x="722" dy="24">intent before code review</tspan>
+  </text>
+</svg>

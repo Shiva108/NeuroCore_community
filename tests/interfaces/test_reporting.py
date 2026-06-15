@@ -160,6 +160,8 @@ def test_generate_consensus_report_requires_enabled_consensus_reporting():
 
     assert response["mode"] == "fallback-briefing"
     assert response["report"].startswith("## Overview")
+    assert "## Known gaps / stale context" in response["report"]
+    assert "(provenance: source=note;" in response["report"]
 
 
 def test_generate_consensus_report_falls_back_when_reporter_raises():
@@ -204,6 +206,30 @@ def test_generate_consensus_report_falls_back_when_reporter_raises():
 
     assert response["mode"] == "fallback-briefing"
     assert response["metadata"]["fallback_reason"] == "reporter unavailable"
+
+
+def test_generate_consensus_report_success_shape_remains_report_mode():
+    config = NeuroCoreConfig(
+        default_namespace="project-alpha",
+        allowed_buckets=("research",),
+        default_sensitivity="standard",
+        enable_multi_model_consensus=True,
+    )
+    reporter = FakeReporter()
+
+    response = generate_consensus_report(
+        {
+            "objective": "Generate an operator report.",
+            "context_markdown": "Explicit context only.",
+        },
+        store=InMemoryStore(),
+        config=config,
+        reporter=reporter,
+    )
+
+    assert response["mode"] == "report"
+    assert response["report"] == "## Overview\nReady."
+    assert "## Known gaps / stale context" not in response["report"]
 
 
 def test_build_reporting_status_emits_explicit_readiness_fields():

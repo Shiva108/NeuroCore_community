@@ -6,12 +6,12 @@ from dataclasses import asdict, dataclass
 from urllib.parse import urlparse
 
 from neurocore.core.config import NeuroCoreConfig, ReportingProviderConfig
+from neurocore.core.operator_state import mirror_status_path
 from neurocore.retrieval.rankers import SemanticRanker, SentenceTransformersRanker
 from neurocore.reporting.consensus import (
     MultiModelConsensusReporter,
     OpenAICompatibleReportClient,
     PrimaryWithFallbackReporter,
-    ReportGenerator,
     SingleModelReportReporter,
 )
 from neurocore.storage.base import BaseStore
@@ -62,16 +62,19 @@ def build_store(config: NeuroCoreConfig) -> BaseStore:
                 local_store=local_store,
                 cloud_primary_store=PostgresStore(config.production_database_url or ""),
                 read_preference=config.mirror_read_preference,
+                status_path=mirror_status_path(),
             )
         return MirroredStore(
             local_store=local_store,
             cloud_store=_build_cloud_store(config),
             read_preference=config.mirror_read_preference,
+            status_path=mirror_status_path(),
         )
     return RoutedStore(primary_store=InMemoryStore(), sealed_store=InMemoryStore())
 
 
-def _build_cloud_store(config: NeuroCoreConfig) -> RoutedStore:
+def _build_cloud_store(config: NeuroCoreConfig) -> BaseStore:
+    """Build the hosted storage backend after validating required URLs."""
     if config.production_backend_provider == "none":
         raise ValueError(
             f"{config.storage_backend.capitalize()} storage backend requires "
@@ -83,11 +86,10 @@ def _build_cloud_store(config: NeuroCoreConfig) -> RoutedStore:
             "primary and sealed production database URLs"
         )
     if config.production_database_url == config.production_sealed_database_url:
-        shared_store = PostgresStore(config.production_database_url)
-        return RoutedStore(
-            primary_store=shared_store,
-            sealed_store=shared_store,
-        )
+        # When both URLs point at the same physical database, wrapping the same
+        # store twice through RoutedStore duplicates list/read traversals and
+        # breaks parity/reconciliation flows that inventory the cloud side.
+        return PostgresStore(config.production_database_url)
     return RoutedStore(
         primary_store=PostgresStore(config.production_database_url),
         sealed_store=PostgresStore(config.production_sealed_database_url),
@@ -120,7 +122,9 @@ def build_summarizer(config: NeuroCoreConfig) -> Summarizer:
     return ConsensusSummarizer()
 
 
-def build_reporter(config: NeuroCoreConfig) -> ReportGenerator:
+def build_reporter(
+    config: NeuroCoreConfig,
+) -> MultiModelConsensusReporter | PrimaryWithFallbackReporter:
     """Build the consensus reporting engine for the current runtime."""
     if not config.enable_multi_model_consensus:
         raise PermissionError("Reporting is disabled")
@@ -225,11 +229,13 @@ def resolve_reporting_plan(config: NeuroCoreConfig) -> ReportingPlan:
 
 
 def _validate_supported_provider(provider: ReportingProviderConfig) -> None:
+    """Reject provider configurations unsupported by the reporting layer."""
     if provider.provider_type != "openai_compatible":
         raise ValueError("Consensus reporting requires a supported consensus provider")
 
 
 def _validate_multi_model_provider(provider: ReportingProviderConfig) -> None:
+    """Validate a provider intended for multi-model consensus execution."""
     _validate_supported_provider(provider)
     if len(provider.model_names) < 2:
         raise ValueError(
@@ -244,6 +250,7 @@ def _validate_multi_model_provider(provider: ReportingProviderConfig) -> None:
 
 
 def _validate_single_model_provider(provider: ReportingProviderConfig) -> None:
+    """Validate a provider intended for single-model fallback execution."""
     _validate_supported_provider(provider)
     if not provider.model_names:
         raise ValueError(
@@ -287,9 +294,35 @@ class StorageBackendStatus:
     sealed_mode: str
     local_configured: bool
     cloud_configured: bool
+    cloud_primary_configured: bool
+    cloud_sealed_configured: bool
+    full_dual_write_configured: bool
     cloud_provider: str
     local_degraded: bool = False
+    cloud_degraded: bool = False
     last_local_error: str | None = None
+    last_cloud_error: str | None = None
+    last_persistence_state: str | None = None
+    last_parity_state: str | None = None
+    last_full_mirror_state: str | None = None
+    parity_verified: bool | None = None
+    reconciliation_pending: bool = False
+    automatic_reconciliation_attempted: bool = False
+    last_reconciliation_direction: str | None = None
+    last_reconciliation_outcome: str | None = None
+    last_parity_check: str | None = None
+    bidirectional_divergence: bool = False
+    destructive_repair_risk: bool = False
+    recommended_safe_action: str | None = None
+    conflict_counts: dict[str, int] | None = None
+    repair_mode: str | None = None
+    last_sync_action: str | None = None
+    last_sync_started_at: str | None = None
+    last_sync_finished_at: str | None = None
+    last_sync_pid: int | None = None
+    last_sync_status: str | None = None
+    last_sync_error: str | None = None
+    active_reconciliation: bool = False
     primary_url: str | None = None
     sealed_url: str | None = None
 
@@ -335,10 +368,19 @@ def build_storage_backend_status(
     if isinstance(store, LocalOnlySealedMirroredStore):
         mirror_status = store.mirror_status()
     local_configured = bool(config.primary_store_path and config.sealed_store_path)
-    cloud_configured = bool(config.production_database_url) and (
+    cloud_primary_configured = bool(config.production_database_url)
+    cloud_sealed_configured = bool(config.production_sealed_database_url)
+    cloud_configured = cloud_primary_configured and (
         config.storage_backend != "mirror"
         or config.mirror_sealed_mode == "local_only"
-        or bool(config.production_sealed_database_url)
+        or cloud_sealed_configured
+    )
+    full_dual_write_configured = (
+        config.storage_backend == "mirror"
+        and config.mirror_sealed_mode == "full"
+        and config.production_backend_provider != "none"
+        and cloud_primary_configured
+        and cloud_sealed_configured
     )
     read_preference = (
         config.mirror_read_preference
@@ -353,9 +395,43 @@ def build_storage_backend_status(
         ),
         local_configured=local_configured,
         cloud_configured=cloud_configured,
+        cloud_primary_configured=cloud_primary_configured,
+        cloud_sealed_configured=cloud_sealed_configured,
+        full_dual_write_configured=full_dual_write_configured,
         cloud_provider=config.production_backend_provider,
         local_degraded=bool(mirror_status.get("local_degraded", False)),
+        cloud_degraded=bool(mirror_status.get("cloud_degraded", False)),
         last_local_error=mirror_status.get("last_local_error"),
+        last_cloud_error=mirror_status.get("last_cloud_error"),
+        last_persistence_state=mirror_status.get("last_persistence_state"),
+        last_parity_state=mirror_status.get("last_parity_state"),
+        last_full_mirror_state=mirror_status.get("last_full_mirror_state"),
+        parity_verified=mirror_status.get("parity_verified"),
+        reconciliation_pending=bool(mirror_status.get("reconciliation_pending", False)),
+        automatic_reconciliation_attempted=bool(
+            mirror_status.get("automatic_reconciliation_attempted", False)
+        ),
+        last_reconciliation_direction=mirror_status.get(
+            "last_reconciliation_direction"
+        ),
+        last_reconciliation_outcome=mirror_status.get("last_reconciliation_outcome"),
+        last_parity_check=mirror_status.get("last_parity_check"),
+        bidirectional_divergence=bool(
+            mirror_status.get("bidirectional_divergence", False)
+        ),
+        destructive_repair_risk=bool(
+            mirror_status.get("destructive_repair_risk", False)
+        ),
+        recommended_safe_action=mirror_status.get("recommended_safe_action"),
+        conflict_counts=mirror_status.get("conflict_counts"),
+        repair_mode=mirror_status.get("repair_mode"),
+        last_sync_action=mirror_status.get("last_sync_action"),
+        last_sync_started_at=mirror_status.get("last_sync_started_at"),
+        last_sync_finished_at=mirror_status.get("last_sync_finished_at"),
+        last_sync_pid=mirror_status.get("last_sync_pid"),
+        last_sync_status=mirror_status.get("last_sync_status"),
+        last_sync_error=mirror_status.get("last_sync_error"),
+        active_reconciliation=bool(mirror_status.get("active_reconciliation", False)),
         primary_url=config.production_database_url,
         sealed_url=(
             None

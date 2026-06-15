@@ -1,0 +1,21 @@
+{
+  "name": "Extension Template",
+  "category": "extensions",
+  "description": "Template for curated multi-capability NeuroCore extensions.",
+  "owner": {
+    "name": "NeuroCore"
+  },
+  "version": "1.0.0",
+  "requires": {
+    "neurocore": true,
+    "tools": [
+      "Python 3.11+"
+    ]
+  },
+  "tags": [
+    "template"
+  ],
+  "difficulty": "intermediate",
+  "estimated_time": "30 minutes",
+  "curation": "curated"
+}

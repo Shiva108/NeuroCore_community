@@ -9,6 +9,13 @@ from neurocore.core.models import MemoryDocument, MemoryRecord
 from neurocore.core.policies import validate_bucket, validate_namespace
 from neurocore.governance.validation import find_secret_like_values
 from neurocore.interfaces.capture import attach_store_warnings, capture_memory
+from neurocore.interfaces.runtime_support import record_runtime_audit
+from neurocore.maintenance.sqlite import (
+    maintain_local_sqlite,
+    normalize_sqlite_maintenance_action,
+    record_target_maintenance_audit,
+    resolve_local_sqlite_targets,
+)
 from neurocore.runtime import build_storage_backend_status
 from neurocore.storage.local_only_sealed_mirrored_store import (
     LocalOnlySealedMirroredStore,
@@ -28,13 +35,7 @@ def update_memory(
 
     if mode == "replace_content":
         replacement = _replace_content(item_id, patch, store, config)
-        store.record_audit(
-            actor=actor,
-            operation="update",
-            target_ids=[item_id, replacement["id"]],
-            outcome="success",
-        )
-        return attach_store_warnings(
+        response = attach_store_warnings(
             {
                 "id": replacement["id"],
                 "updated": True,
@@ -44,6 +45,16 @@ def update_memory(
             },
             store=store,
         )
+        record_runtime_audit(
+            store,
+            actor=actor,
+            operation="update",
+            request=request,
+            status="succeeded",
+            result=response,
+            target_ids=[item_id, replacement["id"]],
+        )
+        return response
 
     if store.get_record(item_id, include_archived=True) is not None:
         store.update_record(item_id, patch=patch, mode=mode)
@@ -52,10 +63,7 @@ def update_memory(
     else:
         raise KeyError(item_id)
 
-    store.record_audit(
-        actor=actor, operation="update", target_ids=[item_id], outcome="success"
-    )
-    return attach_store_warnings(
+    response = attach_store_warnings(
         {
             "id": item_id,
             "updated": True,
@@ -65,6 +73,16 @@ def update_memory(
         },
         store=store,
     )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="update",
+        request=request,
+        status="succeeded",
+        result=response,
+        target_ids=[item_id],
+    )
+    return response
 
 
 def delete_memory(
@@ -81,13 +99,20 @@ def delete_memory(
         store.hard_delete(item_id)
     else:
         store.soft_delete(item_id, reason=str(request.get("reason", "")))
-    store.record_audit(
-        actor=actor, operation="delete", target_ids=[item_id], outcome="success"
-    )
-    return attach_store_warnings(
+    response = attach_store_warnings(
         {"id": item_id, "deleted": True, "mode": mode, "warnings": []},
         store=store,
     )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="delete",
+        request=request,
+        status="succeeded",
+        result=response,
+        target_ids=[item_id],
+    )
+    return response
 
 
 def reindex_memory(
@@ -102,13 +127,20 @@ def reindex_memory(
         semantic_backend=config.semantic_backend,
         semantic_model_name=config.semantic_model_name,
     )
-    store.record_audit(
-        actor=actor, operation="reindex", target_ids=ids, outcome="success"
-    )
-    return attach_store_warnings(
+    response = attach_store_warnings(
         {"processed": processed, "failed": failed, "warnings": warnings},
         store=store,
     )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="reindex",
+        request=request,
+        status="succeeded",
+        result=response,
+        target_ids=ids,
+    )
+    return response
 
 
 def audit_memory(
@@ -142,13 +174,7 @@ def audit_memory(
         findings.extend(item_findings)
         candidate_actions.extend(_candidate_actions(item_findings))
 
-    store.record_audit(
-        actor=actor,
-        operation="audit",
-        target_ids=sorted({str(finding["item_id"]) for finding in findings}),
-        outcome="success",
-    )
-    return attach_store_warnings(
+    response = attach_store_warnings(
         {
             "namespace": namespace,
             "allowed_buckets": list(allowed_buckets),
@@ -159,6 +185,16 @@ def audit_memory(
         },
         store=store,
     )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="audit",
+        request=request,
+        status="succeeded",
+        result=response,
+        target_ids=sorted({str(finding["item_id"]) for finding in findings}),
+    )
+    return response
 
 
 def sync_storage(
@@ -168,7 +204,7 @@ def sync_storage(
     action = str(request.get("action") or "status").strip().lower()
     actor = str(request.get("actor", "system"))
     if action == "status":
-        return {
+        response = {
             "action": "status",
             "supported": isinstance(
                 store,
@@ -180,30 +216,62 @@ def sync_storage(
             ).to_dict(),
             "warnings": [],
         }
+        record_runtime_audit(
+            store,
+            actor=actor,
+            operation="sync_storage",
+            request=request,
+            status="succeeded",
+            result=response,
+            extra_details={"sync_action": action},
+        )
+        return response
     if not isinstance(store, (MirroredStore, LocalOnlySealedMirroredStore)):
         raise ValueError(
             "Storage sync operations require NEUROCORE_STORAGE_BACKEND=mirror"
         )
-    if action == "backfill_local_to_cloud":
-        counts = store.backfill_local_to_cloud()
-    elif action == "repair_local_from_cloud":
-        counts = store.repair_local_from_cloud()
-    else:
-        raise ValueError(
-            "action must be status, backfill_local_to_cloud, or repair_local_from_cloud"
+    try:
+        store.mark_sync_started(action)
+        if action == "backfill_local_to_cloud":
+            counts = store.backfill_local_to_cloud()
+            parity = None
+        elif action == "repair_local_from_cloud":
+            counts = store.repair_local_from_cloud()
+            parity = None
+        elif action == "repair_cloud_from_local":
+            counts = store.repair_cloud_from_local()
+            parity = None
+        elif action == "reconcile_union":
+            parity = store.reconcile_union()
+            counts = parity.get("counts")
+        elif action == "verify_parity":
+            parity = store.verify_parity()
+            counts = parity.get("repair_counts")
+        else:
+            raise ValueError(
+                "action must be status, backfill_local_to_cloud, "
+                "repair_local_from_cloud, repair_cloud_from_local, "
+                "reconcile_union, or verify_parity"
+            )
+    except Exception as exc:
+        store.mark_sync_finished("failed", error=str(exc))
+        record_runtime_audit(
+            store,
+            actor=actor,
+            operation="sync_storage",
+            request=request,
+            status="failed",
+            error=str(exc),
+            extra_details={"sync_action": action},
         )
-    store.record_audit(
-        actor=actor,
-        operation="sync_storage",
-        target_ids=[],
-        outcome="success",
-        details={"action": action, "counts": counts},
-    )
-    return attach_store_warnings(
+        raise
+    store.mark_sync_finished("success")
+    response = attach_store_warnings(
         {
             "action": action,
             "supported": True,
             "counts": counts,
+            "parity": parity,
             "storage_backend": build_storage_backend_status(
                 config,
                 store=store,
@@ -212,6 +280,47 @@ def sync_storage(
         },
         store=store,
     )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="sync_storage",
+        request=request,
+        status="succeeded",
+        result=response,
+        extra_details={"counts": counts, "parity": parity, "sync_action": action},
+    )
+    return response
+
+
+def maintain_storage(
+    request: dict[str, object], store: BaseStore, config: NeuroCoreConfig
+) -> dict[str, object]:
+    _ensure_admin_enabled(config)
+    actor = str(request.get("actor", "system"))
+    action = normalize_sqlite_maintenance_action(str(request.get("action") or "report"))
+    response = attach_store_warnings(
+        maintain_local_sqlite(action, config=config, store=store),
+        store=store,
+    )
+    if action != "report":
+        for target in resolve_local_sqlite_targets(config=config, store=store):
+            record_target_maintenance_audit(
+                target,
+                actor=actor,
+                action=action,
+                outcome="succeeded",
+            )
+    record_runtime_audit(
+        store,
+        actor=actor,
+        operation="maintain_storage",
+        request=request,
+        status="succeeded",
+        result=response,
+        extra_details={"maintenance_action": action},
+        target_ids=[str(target["name"]) for target in response["targets"]],
+    )
+    return response
 
 
 def _ensure_admin_enabled(config: NeuroCoreConfig) -> None:

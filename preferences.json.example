@@ -1,17 +1,7 @@
 {
-  "_warning": "Template only. Copy to a local-only preferences.json outside version control if you use personal helper tooling.",
   "default_namespace": "default",
-  "allowed_buckets": [
-    "work",
-    "research",
-    "planning"
-  ],
-  "query_defaults": {
-    "top_k": 8,
-    "sensitivity_ceiling": "standard"
-  },
-  "display": {
-    "show_diagnostics": true,
-    "render_markdown": true
-  }
+  "default_bucket": "work",
+  "default_top_k": 8,
+  "enable_dashboard": false,
+  "notes": "Copy to preferences.json for local-only operator settings. Do not commit real values."
 }

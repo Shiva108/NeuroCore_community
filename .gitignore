@@ -1,5 +1,20 @@
+# Local tooling and agent state
+.claude/
+.githooks/
+.hypothesis/
+.playwright-cli/
+.sentrux/
+.claude
+.claude/commands
+.github
+.*
+docs
+
+# Virtual environments
 .venv/
 venv/
+
+# Python cache and build artifacts
 __pycache__/
 **/__pycache__/
 *.py[cod]
@@ -9,31 +24,28 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
 build/
 dist/
 
+# Local secrets and operator state
 .env
 .env.*
 !.env.example
+!.env.*.example
 token.json
 secrets.json
 preferences.json
-*.generated.md
-*.output.md
-output*.md
-outputs/**/*.md
-reports/**/*.md
-artifacts/**/*.md
 
+# Local runtime data
 data/
 outputs/
+output*.md
+*.output.md
 *.db
 *.db-*
 *.sqlite
 *.sqlite*
 
+# Editor and OS noise
 .DS_Store
 Thumbs.db
-
-

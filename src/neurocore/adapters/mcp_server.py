@@ -25,6 +25,7 @@ from neurocore.interfaces.dashboard import build_dashboard_data
 from neurocore.interfaces.ingest import ingest_discord_event, ingest_slack_event
 from neurocore.interfaces.protocols import list_protocols, run_protocol
 from neurocore.interfaces.query import query_memory
+from neurocore.interfaces.runtime_support import attach_runtime_metadata
 from neurocore.interfaces.reporting import generate_consensus_report
 from neurocore.interfaces.sessions import (
     capture_session_event,
@@ -40,12 +41,14 @@ def create_mcp_server(
     *,
     store: BaseStore | None = None,
     config: NeuroCoreConfig | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8000,
 ) -> FastMCP:
     """Create the MCP server and register enabled NeuroCore tools."""
     config = config or load_config()
     store = store or build_store(config)
     semantic_ranker = build_semantic_ranker(config)
-    server = FastMCP("NeuroCore")
+    server = FastMCP("NeuroCore", host=host, port=port)
 
     server.add_tool(
         lambda request: capture_memory(request, store=store, config=config),
@@ -142,7 +145,13 @@ def create_mcp_server(
     if config.enable_background_summarization:
         server.add_tool(
             lambda request: run_background_summaries(
-                request, store=store, config=config
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="run_background_summaries",
+                ),
+                store=store,
+                config=config,
             ),
             name="run_background_summaries",
             description="Run background document summarization.",
@@ -170,27 +179,67 @@ def create_mcp_server(
         )
     if config.enable_admin_surface:
         server.add_tool(
-            lambda request: update_memory(request, store=store, config=config),
+            lambda request: update_memory(
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="update_memory",
+                ),
+                store=store,
+                config=config,
+            ),
             name="update_memory",
             description="Update a NeuroCore record or document.",
         )
         server.add_tool(
-            lambda request: delete_memory(request, store=store, config=config),
+            lambda request: delete_memory(
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="delete_memory",
+                ),
+                store=store,
+                config=config,
+            ),
             name="delete_memory",
             description="Delete a NeuroCore record or document.",
         )
         server.add_tool(
-            lambda request: reindex_memory(request, store=store, config=config),
+            lambda request: reindex_memory(
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="reindex_memory",
+                ),
+                store=store,
+                config=config,
+            ),
             name="reindex_memory",
             description="Reindex NeuroCore retrieval artifacts.",
         )
         server.add_tool(
-            lambda request: audit_memory(request, store=store, config=config),
+            lambda request: audit_memory(
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="audit_memory",
+                ),
+                store=store,
+                config=config,
+            ),
             name="audit_memory",
             description="Audit NeuroCore memory for secret-like values.",
         )
         server.add_tool(
-            lambda request: sync_storage(request, store=store, config=config),
+            lambda request: sync_storage(
+                attach_runtime_metadata(
+                    request,
+                    source_surface="mcp",
+                    action="sync_storage",
+                ),
+                store=store,
+                config=config,
+            ),
             name="sync_storage",
             description="Inspect or repair mirrored NeuroCore storage state.",
         )

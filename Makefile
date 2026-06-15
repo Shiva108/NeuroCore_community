@@ -16,3 +16,7 @@ validate:
 
 openapi-check:
 	python scripts/generate_openapi_snapshot.py --check
+
+sentrux:
+	sentrux check .
+	sentrux gate .

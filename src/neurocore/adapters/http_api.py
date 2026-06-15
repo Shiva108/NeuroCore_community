@@ -34,6 +34,7 @@ from neurocore.interfaces.dashboard import build_dashboard_data
 from neurocore.interfaces.ingest import ingest_discord_event, ingest_slack_event
 from neurocore.interfaces.protocols import list_protocols, run_protocol
 from neurocore.interfaces.query import query_memory
+from neurocore.interfaces.runtime_support import attach_runtime_metadata
 from neurocore.interfaces.reporting import generate_consensus_report
 from neurocore.interfaces.sessions import (
     capture_session_event,
@@ -84,64 +85,76 @@ def _register_core_routes(
 ) -> None:
     @app.post("/capture")
     def capture_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return capture_memory(request, store=store, config=config)
+        return _guard_request_errors(
+            lambda: capture_memory(request, store=store, config=config)
+        )
 
     @app.post("/capture/batch")
     def capture_batch_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return capture_many(
-            list(request.get("requests") or []),
-            store=store,
-            config=config,
+        return _guard_request_errors(
+            lambda: capture_many(
+                list(request.get("requests") or []),
+                store=store,
+                config=config,
+            )
         )
 
     @app.post("/brains/create")
     def brain_create_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return create_brain(
-            request, store=store, default_allowed_buckets=config.allowed_buckets
+        return _guard_request_errors(
+            lambda: create_brain(
+                request, store=store, default_allowed_buckets=config.allowed_buckets
+            )
         )
 
     @app.post("/brains/get")
     def brain_get_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return get_brain(request, store=store)
+        return _guard_request_errors(lambda: get_brain(request, store=store))
 
     @app.post("/brains/list")
     def brain_list_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return list_brains(request, store=store)
+        return _guard_request_errors(lambda: list_brains(request, store=store))
 
     @app.post("/brains/update")
     def brain_update_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return update_brain(request, store=store)
+        return _guard_request_errors(lambda: update_brain(request, store=store))
 
     @app.post("/brains/archive")
     def brain_archive_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return archive_brain(request, store=store)
+        return _guard_request_errors(lambda: archive_brain(request, store=store))
 
     @app.post("/query")
     def query_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return query_memory(
-            request,
-            store=store,
-            config=config,
-            semantic_ranker=semantic_ranker,
-        )
-
-    @app.post("/briefings/generate")
-    def briefing_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return generate_briefing(
-            request,
-            store=store,
-            config=config,
-            semantic_ranker=semantic_ranker,
-        )
-
-    @app.post("/reports/consensus")
-    def report_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_reporting(
-            lambda: generate_consensus_report(
+        return _guard_request_errors(
+            lambda: query_memory(
                 request,
                 store=store,
                 config=config,
                 semantic_ranker=semantic_ranker,
+            )
+        )
+
+    @app.post("/briefings/generate")
+    def briefing_endpoint(request: dict[str, object]) -> dict[str, object]:
+        return _guard_request_errors(
+            lambda: generate_briefing(
+                request,
+                store=store,
+                config=config,
+                semantic_ranker=semantic_ranker,
+            )
+        )
+
+    @app.post("/reports/consensus")
+    def report_endpoint(request: dict[str, object]) -> dict[str, object]:
+        return _guard_request_errors(
+            lambda: _guard_reporting(
+                lambda: generate_consensus_report(
+                    request,
+                    store=store,
+                    config=config,
+                    semantic_ranker=semantic_ranker,
+                )
             )
         )
 
@@ -151,58 +164,118 @@ def _register_core_routes(
 
     @app.post("/protocols/run")
     def protocol_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return run_protocol(
-            request,
-            store=store,
-            config=config,
-            semantic_ranker=semantic_ranker,
+        return _guard_request_errors(
+            lambda: run_protocol(
+                request,
+                store=store,
+                config=config,
+                semantic_ranker=semantic_ranker,
+            )
         )
 
     @app.post("/sessions/capture")
     def session_capture_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return capture_session_event(request, store=store, config=config)
+        return _guard_request_errors(
+            lambda: capture_session_event(request, store=store, config=config)
+        )
 
     @app.post("/sessions/checkpoint")
     def session_checkpoint_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return checkpoint_session(request, store=store, config=config)
+        return _guard_request_errors(
+            lambda: checkpoint_session(request, store=store, config=config)
+        )
 
     @app.post("/sessions/resume")
     def session_resume_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return resume_session(request, store=store, config=config)
+        return _guard_request_errors(
+            lambda: resume_session(request, store=store, config=config)
+        )
 
     @app.post("/admin/update")
     def update_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_admin(lambda: update_memory(request, store=store, config=config))
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="update_memory"
+        )
+        return _guard_request_errors(
+            lambda: _guard_admin(
+                lambda: update_memory(payload, store=store, config=config)
+            )
+        )
 
     @app.post("/admin/delete")
     def delete_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_admin(lambda: delete_memory(request, store=store, config=config))
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="delete_memory"
+        )
+        return _guard_request_errors(
+            lambda: _guard_admin(
+                lambda: delete_memory(payload, store=store, config=config)
+            )
+        )
 
     @app.post("/admin/reindex")
     def reindex_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_admin(lambda: reindex_memory(request, store=store, config=config))
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="reindex_memory"
+        )
+        return _guard_request_errors(
+            lambda: _guard_admin(
+                lambda: reindex_memory(payload, store=store, config=config)
+            )
+        )
 
     @app.post("/admin/audit")
     def audit_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_admin(lambda: audit_memory(request, store=store, config=config))
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="audit_memory"
+        )
+        return _guard_request_errors(
+            lambda: _guard_admin(
+                lambda: audit_memory(payload, store=store, config=config)
+            )
+        )
 
     @app.post("/admin/sync")
     def sync_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_admin(lambda: sync_storage(request, store=store, config=config))
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="sync_storage"
+        )
+        return _guard_request_errors(
+            lambda: _guard_admin(
+                lambda: sync_storage(payload, store=store, config=config)
+            )
+        )
 
     @app.post("/ingest/slack")
     async def slack_ingest_endpoint(request: Request) -> dict[str, object]:
         payload = await _parse_json_or_form_payload(request)
-        return ingest_slack_event(payload, store=store, config=config)
+        return _guard_request_errors(
+            lambda: ingest_slack_event(payload, store=store, config=config)
+        )
 
     @app.post("/ingest/discord")
     def discord_ingest_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return ingest_discord_event(request, store=store, config=config)
+        return _guard_request_errors(
+            lambda: ingest_discord_event(request, store=store, config=config)
+        )
 
     @app.post("/summaries/run")
     def run_summaries_endpoint(request: dict[str, object]) -> dict[str, object]:
-        return _guard_summaries(
-            lambda: run_background_summaries(request, store=store, config=config)
+        payload = attach_runtime_metadata(
+            request, source_surface="http", action="run_background_summaries"
+        )
+        return _guard_request_errors(
+            lambda: _guard_summaries(
+                lambda: _guard_feature(
+                    lambda: run_background_summaries(
+                        payload,
+                        store=store,
+                        config=config,
+                    ),
+                    enabled=config.enable_background_summarization,
+                    message="Background summarization is disabled",
+                )
+            )
         )
 
 
@@ -279,9 +352,11 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/capture", response_class=HTMLResponse)
     async def dashboard_capture_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        capture_result = _guard_dashboard(
-            lambda: capture_memory(payload, store=store, config=config),
-            enabled=config.enable_dashboard,
+        capture_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: capture_memory(payload, store=store, config=config),
+                enabled=config.enable_dashboard,
+            )
         )
         return _render_dashboard_response(
             payload,
@@ -293,14 +368,16 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/query", response_class=HTMLResponse)
     async def dashboard_query_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        query_result = _guard_dashboard(
-            lambda: query_memory(
-                payload,
-                store=store,
-                config=config,
-                semantic_ranker=semantic_ranker,
+        query_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: query_memory(
+                    payload,
+                    store=store,
+                    config=config,
+                    semantic_ranker=semantic_ranker,
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -312,14 +389,16 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/briefing", response_class=HTMLResponse)
     async def dashboard_briefing_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        briefing_result = _guard_dashboard(
-            lambda: generate_briefing(
-                payload,
-                store=store,
-                config=config,
-                semantic_ranker=semantic_ranker,
+        briefing_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: generate_briefing(
+                    payload,
+                    store=store,
+                    config=config,
+                    semantic_ranker=semantic_ranker,
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -331,14 +410,16 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/report", response_class=HTMLResponse)
     async def dashboard_report_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        report_result = _guard_dashboard(
-            lambda: _dashboard_report_result(
-                payload,
-                store=store,
-                config=config,
-                semantic_ranker=semantic_ranker,
+        report_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: _dashboard_report_result(
+                    payload,
+                    store=store,
+                    config=config,
+                    semantic_ranker=semantic_ranker,
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -350,13 +431,15 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/brain/create", response_class=HTMLResponse)
     async def dashboard_brain_create_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        brain_result = _guard_dashboard(
-            lambda: create_brain(
-                payload,
-                store=store,
-                default_allowed_buckets=config.allowed_buckets,
+        brain_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: create_brain(
+                    payload,
+                    store=store,
+                    default_allowed_buckets=config.allowed_buckets,
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -368,9 +451,11 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/brain/archive", response_class=HTMLResponse)
     async def dashboard_brain_archive_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        brain_result = _guard_dashboard(
-            lambda: archive_brain(payload, store=store),
-            enabled=config.enable_dashboard,
+        brain_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: archive_brain(payload, store=store),
+                enabled=config.enable_dashboard,
+            )
         )
         return _render_dashboard_response(
             payload,
@@ -382,9 +467,11 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/session/resume", response_class=HTMLResponse)
     async def dashboard_session_resume_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        session_result = _guard_dashboard(
-            lambda: resume_session(payload, store=store, config=config),
-            enabled=config.enable_dashboard,
+        session_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: resume_session(payload, store=store, config=config),
+                enabled=config.enable_dashboard,
+            )
         )
         return _render_dashboard_response(
             payload,
@@ -396,14 +483,16 @@ def _register_dashboard_read_routes(
     @app.post("/dashboard/protocol/run", response_class=HTMLResponse)
     async def dashboard_protocol_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        protocol_result = _guard_dashboard(
-            lambda: run_protocol(
-                payload,
-                store=store,
-                config=config,
-                semantic_ranker=semantic_ranker,
+        protocol_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: run_protocol(
+                    payload,
+                    store=store,
+                    config=config,
+                    semantic_ranker=semantic_ranker,
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -422,11 +511,13 @@ def _register_dashboard_admin_routes(
     @app.post("/dashboard/admin/update", response_class=HTMLResponse)
     async def dashboard_update_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        admin_result = _guard_dashboard(
-            lambda: _guard_admin(
-                lambda: update_memory(payload, store=store, config=config)
+        admin_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: _guard_admin(
+                    lambda: update_memory(payload, store=store, config=config)
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -438,11 +529,13 @@ def _register_dashboard_admin_routes(
     @app.post("/dashboard/admin/reindex", response_class=HTMLResponse)
     async def dashboard_reindex_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        admin_result = _guard_dashboard(
-            lambda: _guard_admin(
-                lambda: reindex_memory(payload, store=store, config=config)
+        admin_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: _guard_admin(
+                    lambda: reindex_memory(payload, store=store, config=config)
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -454,11 +547,13 @@ def _register_dashboard_admin_routes(
     @app.post("/dashboard/admin/audit", response_class=HTMLResponse)
     async def dashboard_audit_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        admin_result = _guard_dashboard(
-            lambda: _guard_admin(
-                lambda: audit_memory(payload, store=store, config=config)
+        admin_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: _guard_admin(
+                    lambda: audit_memory(payload, store=store, config=config)
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -470,11 +565,13 @@ def _register_dashboard_admin_routes(
     @app.post("/dashboard/admin/delete", response_class=HTMLResponse)
     async def dashboard_delete_endpoint(request: Request) -> str:
         payload = await _parse_form_payload(request)
-        admin_result = _guard_dashboard(
-            lambda: _guard_admin(
-                lambda: delete_memory(payload, store=store, config=config)
+        admin_result = _guard_request_errors(
+            lambda: _guard_dashboard(
+                lambda: _guard_admin(
+                    lambda: delete_memory(payload, store=store, config=config)
+                ),
+                enabled=config.enable_dashboard,
             ),
-            enabled=config.enable_dashboard,
         )
         return _render_dashboard_response(
             payload,
@@ -490,6 +587,17 @@ def _guard_admin(fn: Callable[[], ResponseT]) -> ResponseT:
         return fn()
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+def _guard_request_errors(fn: Callable[[], ResponseT]) -> ResponseT:
+    """Translate request validation and lookup failures into HTTP responses."""
+    try:
+        return fn()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except KeyError as exc:
+        detail = str(exc.args[0]) if exc.args else "Not found"
+        raise HTTPException(status_code=404, detail=detail) from exc
 
 
 def _guard_dashboard(fn: Callable[[], ResponseT], *, enabled: bool) -> ResponseT:

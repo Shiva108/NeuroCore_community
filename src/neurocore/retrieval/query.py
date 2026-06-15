@@ -348,7 +348,7 @@ def _serialize_candidate(
     document_id = (
         candidate.document.id
         if candidate.kind == "chunk" and candidate.document
-        else None
+        else item.id if candidate.kind == "document" else None
     )
     metadata = dict(item.metadata)
     if getattr(item, "title", None):

@@ -1,0 +1,52 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeuroCore overview screenshot</title>
+  <desc id="desc">Illustrated project overview showing core capabilities and secure setup notes.</desc>
+  <rect width="1280" height="720" fill="#0B1220"/>
+  <rect x="36" y="32" width="1208" height="656" rx="28" fill="#F8FAFC"/>
+  <rect x="36" y="32" width="1208" height="76" rx="28" fill="#0F172A"/>
+  <circle cx="86" cy="70" r="10" fill="#FB7185"/>
+  <circle cx="118" cy="70" r="10" fill="#FBBF24"/>
+  <circle cx="150" cy="70" r="10" fill="#34D399"/>
+  <text x="200" y="77" fill="#E2E8F0" font-family="Verdana, sans-serif" font-size="26" font-weight="700">NeuroCore Publication Preview</text>
+  <rect x="86" y="150" width="498" height="470" rx="24" fill="#E2E8F0"/>
+  <text x="122" y="200" fill="#0F172A" font-family="Verdana, Arial, sans-serif" font-size="32" font-weight="700">
+    <tspan x="122" dy="0">Contract-first memory</tspan>
+    <tspan x="122" dy="38">core</tspan>
+  </text>
+  <text x="122" y="274" fill="#334155" font-family="Verdana, Arial, sans-serif" font-size="18">
+    <tspan x="122" dy="0">Capture, query, govern, and summarize</tspan>
+    <tspan x="122" dy="28">notes and documents</tspan>
+  </text>
+  <rect x="122" y="296" width="238" height="44" rx="22" fill="#0F766E"/>
+  <text x="153" y="325" fill="#ECFEFF" font-family="Verdana, sans-serif" font-size="20" font-weight="700">Apache-2.0 License</text>
+  <rect x="376" y="296" width="160" height="44" rx="22" fill="#1D4ED8"/>
+  <text x="399" y="325" fill="#EFF6FF" font-family="Verdana, sans-serif" font-size="20" font-weight="700">Python 3.11+</text>
+  <rect x="122" y="382" width="426" height="88" rx="20" fill="#FFFFFF"/>
+  <text x="146" y="420" fill="#0F172A" font-family="Verdana, Arial, sans-serif" font-size="22" font-weight="700">Security-first defaults</text>
+  <text x="146" y="444" fill="#475569" font-family="Verdana, Arial, sans-serif" font-size="16">
+    <tspan x="146" dy="0">Ignored local secrets, example config files,</tspan>
+    <tspan x="146" dy="22">and governance validation.</tspan>
+  </text>
+  <rect x="122" y="486" width="426" height="92" rx="20" fill="#FFFFFF"/>
+  <text x="146" y="524" fill="#0F172A" font-family="Verdana, Arial, sans-serif" font-size="22" font-weight="700">Multiple runtime surfaces</text>
+  <text x="146" y="548" fill="#475569" font-family="Verdana, Arial, sans-serif" font-size="16">
+    <tspan x="146" dy="0">Library, CLI, HTTP, MCP, dashboard, and</tspan>
+    <tspan x="146" dy="22">background summarization paths.</tspan>
+  </text>
+  <rect x="662" y="150" width="496" height="470" rx="24" fill="#0F172A"/>
+  <text x="700" y="206" fill="#F8FAFC" font-family="Verdana, Arial, sans-serif" font-size="28" font-weight="700">
+    <tspan x="700" dy="0">Recommended first-run</tspan>
+    <tspan x="700" dy="34">checklist</tspan>
+  </text>
+  <rect x="696" y="266" width="428" height="62" rx="18" fill="#111827"/>
+  <text x="720" y="304" fill="#93C5FD" font-family="monospace" font-size="18">python -m venv .venv</text>
+  <rect x="696" y="344" width="428" height="62" rx="18" fill="#111827"/>
+  <text x="720" y="382" fill="#A7F3D0" font-family="monospace" font-size="18">python -m pip install -e ".[dev]"</text>
+  <rect x="696" y="422" width="428" height="62" rx="18" fill="#111827"/>
+  <text x="720" y="460" fill="#FDE68A" font-family="monospace" font-size="18">cp .env.example .env</text>
+  <rect x="696" y="500" width="428" height="86" rx="18" fill="#111827"/>
+  <text x="720" y="534" fill="#F9A8D4" font-family="monospace" font-size="16">
+    <tspan x="720" dy="0">pytest &amp;&amp; python -m</tspan>
+    <tspan x="720" dy="24">neurocore.governance.validation</tspan>
+  </text>
+</svg>

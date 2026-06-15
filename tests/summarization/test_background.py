@@ -1,5 +1,6 @@
 from neurocore.core.config import NeuroCoreConfig
 from neurocore.interfaces.capture import capture_memory
+from neurocore.interfaces.summaries import run_background_summaries
 from neurocore.storage.in_memory import InMemoryStore
 from neurocore.summarization.background import BackgroundSummarizationRunner
 from neurocore.summarization.consensus import ConsensusSummary
@@ -141,3 +142,33 @@ def test_background_runner_summarizes_chunks_before_document():
     ]
     assert "summary-1" in summarizer.calls[-1]
     assert f"summary-{len(chunk_ids)}" in summarizer.calls[-1]
+
+
+def test_run_background_summaries_returns_structured_failure_and_audits(monkeypatch):
+    store = InMemoryStore()
+    config = build_config()
+
+    class FailingRunner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run(self, limit: int = 10):
+            raise RuntimeError(f"summary failed for limit={limit}")
+
+    monkeypatch.setattr(
+        "neurocore.interfaces.summaries.BackgroundSummarizationRunner",
+        FailingRunner,
+    )
+
+    result = run_background_summaries(
+        {"limit": 2},
+        store=store,
+        config=config,
+    )
+
+    assert result["processed"] == 0
+    assert result["failed"] == 1
+    assert result["status"] == "failed"
+    assert result["error"] == "summary failed for limit=2"
+    assert store.audit_events[-1]["operation"] == "background_summaries_run"
+    assert store.audit_events[-1]["details"]["status"] == "failed"

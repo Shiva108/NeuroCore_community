@@ -1,0 +1,21 @@
+{
+  "name": "Skill Template",
+  "category": "skills",
+  "description": "Template for reusable NeuroCore skill packs.",
+  "owner": {
+    "name": "NeuroCore"
+  },
+  "version": "1.0.0",
+  "requires": {
+    "neurocore": true,
+    "tools": [
+      "Codex or Claude Code"
+    ]
+  },
+  "tags": [
+    "template"
+  ],
+  "difficulty": "beginner",
+  "estimated_time": "10 minutes",
+  "curation": "open"
+}

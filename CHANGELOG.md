@@ -2,24 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and this project follows [Semantic Versioning](https://semver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project is intended to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
 ### Added
-- Public community repository with fresh history.
-- Community-facing README, contributing guide, roadmap, security policy, and
-  code of conduct.
-- Public bootstrap, validation, and OpenAPI snapshot scripts.
-- Community-safe repo contract validation and CI workflow.
-- Public setup, configuration, and troubleshooting guides under `docs/`.
-- Safe example configuration files for `secrets.json` and `preferences.json`.
-- README demo assets for CLI and reporting flows.
-- Source distribution manifest for packaging non-code repository assets.
+- Publication-ready repository metadata, licensing, and security guidance.
+- Example local configuration files for secrets and operator preferences.
+- Packaging metadata, console entry point, lint configuration, and expanded CI checks.
+- Setup, security, and troubleshooting documentation.
+- README screenshots illustrating the package and dashboard surfaces.
 
 ### Changed
-- Switched the public license to Apache-2.0.
-- Reduced the repository surface to the core package, tests, and public docs.
-- Expanded README guidance for security, onboarding, validation, and support.
-- Tightened ignore rules for generated Markdown outputs and local artifacts.
+- Refined the README for GitHub-first onboarding and safer configuration guidance.
+- Added missing typing and documentation to key runtime and adapter modules.

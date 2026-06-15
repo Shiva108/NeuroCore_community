@@ -13,6 +13,7 @@ DEFAULT_BRIEFING_SECTIONS = (
     "Overview",
     "Relevant Memory",
     "Prior Decisions / Payloads",
+    "Known gaps / stale context",
     "Next Actions",
 )
 
@@ -51,6 +52,7 @@ def generate_briefing(
             semantic_ranker=semantic_ranker,
         )
     briefing = _synthesize_briefing(
+        context_source=context_source,
         context_markdown=context_markdown,
         query_response=query_response,
         sections=sections,
@@ -203,6 +205,7 @@ def _augment_with_operator_hints(
 
 def _synthesize_briefing(
     *,
+    context_source: str,
     context_markdown: str,
     query_response: dict[str, object] | None,
     sections: tuple[str, ...],
@@ -220,6 +223,11 @@ def _synthesize_briefing(
         "Relevant Memory": _relevant_memory_section(results),
         "Prior Decisions / Payloads": _prior_decisions_section(results),
         "Operator Hints": _operator_hints_section(results),
+        "Known gaps / stale context": _known_gaps_section(
+            context_source=context_source,
+            query_response=query_response,
+            results=results,
+        ),
         "Next Actions": _next_actions_section(
             results, context_markdown=context_markdown
         ),
@@ -291,7 +299,8 @@ def _relevant_memory_section(results: list[dict[str, object]]) -> str:
         preview = str(result.get("content_preview") or "").strip() or "No preview."
         bucket = str(result.get("bucket", "unknown"))
         tag_suffix = f" tags={', '.join(tags)}" if tags else ""
-        lines.append(f"- {label} [{bucket}]{tag_suffix}: {preview}")
+        provenance = _format_provenance(result)
+        lines.append(f"- {label} [{bucket}]{tag_suffix}: {preview}{provenance}")
     return "\n".join(lines)
 
 
@@ -318,7 +327,7 @@ def _prior_decisions_section(results: list[dict[str, object]]) -> str:
     for result in decisions[:4]:
         label = _result_label(result)
         preview = str(result.get("content_preview") or "").strip() or "No preview."
-        lines.append(f"- {label}: {preview}")
+        lines.append(f"- {label}: {preview}{_format_provenance(result)}")
     return "\n".join(lines)
 
 
@@ -379,6 +388,25 @@ def _next_actions_section(
     return "\n".join(priorities[:3])
 
 
+def _known_gaps_section(
+    *,
+    context_source: str,
+    query_response: dict[str, object] | None,
+    results: list[dict[str, object]],
+) -> str:
+    if context_source == "context_markdown" or not isinstance(query_response, dict):
+        return ""
+    warnings = [
+        str(item).strip() for item in list(query_response.get("warnings") or [])
+    ]
+    lines = [f"- {warning}" for warning in warnings if warning]
+    if len(results) < 2:
+        lines.append(
+            "- Retrieved durable context is likely incomplete because fewer than 2 matching items were available."
+        )
+    return "\n".join(lines)
+
+
 def _matches_any_marker(
     result: dict[str, object], *, markers: tuple[str, ...], buckets: tuple[str, ...]
 ) -> bool:
@@ -406,6 +434,18 @@ def _result_label(result: dict[str, object]) -> str:
         if title:
             return title
     return str(result.get("id", "unknown"))
+
+
+def _format_provenance(result: dict[str, object]) -> str:
+    metadata = result.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    parts = [f"source={str(metadata.get('source_type') or 'unknown')}"]
+    title = str(metadata.get("title") or "").strip()
+    if title:
+        parts.append(f"title={title}")
+    parts.append(f"id={str(result.get('id', 'unknown'))}")
+    return f" (provenance: {'; '.join(parts)})"
 
 
 def _parse_sections(raw: object, *, include_operator_hints: bool) -> tuple[str, ...]:

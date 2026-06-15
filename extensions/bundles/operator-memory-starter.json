@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "Operator Memory Starter",
+  "description": "Baseline local operator workflows for capture, review, and reusable handoffs.",
+  "items": [
+    "extensions/README.md",
+    "integrations/chat-capture",
+    "recipes/quickstart-memory-capture",
+    "recipes/ops-weekly-memory-report",
+    "skills/daily-memory-triage",
+    "schemas/neurocore-http-openapi.json",
+    "primitives/README.md"
+  ],
+  "optional_python_extras": [
+    "semantic"
+  ],
+  "required_config_flags": [
+    "enable_background_summarization"
+  ]
+}

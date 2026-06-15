@@ -6,6 +6,7 @@ import pytest
 from neurocore.core.config import ConfigError, NeuroCoreConfig, load_config
 from neurocore.core.operator_state import (
     default_primary_store_path,
+    default_scheduler_store_path,
     default_sealed_store_path,
 )
 
@@ -77,9 +78,11 @@ def test_load_config_applies_documented_defaults(monkeypatch):
     assert config.enable_mcp_adapter is False
     assert config.enable_dashboard is False
     assert config.enable_background_summarization is False
+    assert config.enable_scheduler is False
     assert config.enable_multi_model_consensus is False
     assert config.consensus_provider == "none"
     assert config.consensus_model_names == ()
+    assert config.scheduler_store_path == default_scheduler_store_path(minimal_env())
     assert config.dedup_merge_metadata is True
 
 
@@ -96,6 +99,7 @@ def test_load_config_accepts_extended_backend_and_adapter_settings(monkeypatch):
             NEUROCORE_ENABLE_MCP_ADAPTER="true",
             NEUROCORE_ENABLE_DASHBOARD="true",
             NEUROCORE_ENABLE_BACKGROUND_SUMMARIZATION="true",
+            NEUROCORE_ENABLE_SCHEDULER="true",
             NEUROCORE_PRODUCTION_BACKEND_PROVIDER="supabase",
             NEUROCORE_PRODUCTION_DATABASE_URL="postgresql://primary",
             NEUROCORE_PRODUCTION_SEALED_DATABASE_URL="postgresql://sealed",
@@ -117,6 +121,7 @@ def test_load_config_accepts_extended_backend_and_adapter_settings(monkeypatch):
     assert config.enable_mcp_adapter is True
     assert config.enable_dashboard is True
     assert config.enable_background_summarization is True
+    assert config.enable_scheduler is True
     assert config.enable_multi_model_consensus is True
     assert config.consensus_provider == "openai_compatible"
     assert config.consensus_model_names == ("gpt-4.1-mini", "claude-3.5-sonnet")
@@ -218,6 +223,21 @@ def test_load_config_rejects_local_only_sealed_mirror_mode_without_primary_url()
                 NEUROCORE_STORAGE_BACKEND="mirror",
                 NEUROCORE_MIRROR_SEALED_MODE="local_only",
                 NEUROCORE_PRODUCTION_BACKEND_PROVIDER="supabase",
+            )
+        )
+
+
+def test_load_config_rejects_full_mirror_mode_without_sealed_url():
+    with pytest.raises(
+        ConfigError,
+        match="Mirror storage backend requires NEUROCORE_PRODUCTION_SEALED_DATABASE_URL",
+    ):
+        load_config(
+            env=minimal_env(
+                NEUROCORE_STORAGE_BACKEND="mirror",
+                NEUROCORE_MIRROR_SEALED_MODE="full",
+                NEUROCORE_PRODUCTION_BACKEND_PROVIDER="supabase",
+                NEUROCORE_PRODUCTION_DATABASE_URL="postgresql://primary",
             )
         )
 

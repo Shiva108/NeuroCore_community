@@ -6,14 +6,17 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import TextIO
 
 from neurocore.adapters.http_api import create_app
 from neurocore.adapters.mcp_server import create_mcp_server
 from neurocore.core.config import NeuroCoreConfig, load_config
+from neurocore.governance.validation import validate_extension_target
 from neurocore.interfaces.admin import (
     audit_memory,
     delete_memory,
+    maintain_storage,
     reindex_memory,
     sync_storage,
     update_memory,
@@ -31,15 +34,19 @@ from neurocore.interfaces.diagnostics import diagnose_runtime
 from neurocore.interfaces.ingest import ingest_discord_event, ingest_slack_event
 from neurocore.interfaces.protocols import list_protocols, run_protocol
 from neurocore.interfaces.query import query_memory
+from neurocore.interfaces.runtime_support import attach_runtime_metadata
 from neurocore.interfaces.reporting import generate_consensus_report
 from neurocore.interfaces.sessions import (
     capture_session_event,
     checkpoint_session,
     resume_session,
 )
+from neurocore.interfaces.scheduler import create_job, delete_job, list_jobs, run_due_jobs
 from neurocore.interfaces.summaries import run_background_summaries
 from neurocore.runtime import build_semantic_ranker, build_store
 from neurocore.storage.base import BaseStore
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -109,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     admin_parser = subparsers.add_parser("admin")
     admin_subparsers = admin_parser.add_subparsers(dest="admin_command", required=True)
-    for name in ("update", "delete", "reindex", "audit", "sync"):
+    for name in ("update", "delete", "reindex", "audit", "sync", "maintenance"):
         command_parser = admin_subparsers.add_parser(name)
         command_parser.add_argument("--request-json", required=True)
 
@@ -127,6 +134,24 @@ def build_parser() -> argparse.ArgumentParser:
         default="stdio",
     )
     mcp_parser.add_argument("--mount-path", default=None)
+    mcp_parser.add_argument("--host", default="127.0.0.1")
+    mcp_parser.add_argument("--port", type=int, default=8000)
+
+    validate_extension_parser = subparsers.add_parser("validate-extension")
+    validate_extension_parser.add_argument("path")
+
+    scheduler_parser = subparsers.add_parser("scheduler")
+    scheduler_subparsers = scheduler_parser.add_subparsers(
+        dest="scheduler_command", required=True
+    )
+    create_scheduler_parser = scheduler_subparsers.add_parser("create")
+    create_scheduler_parser.add_argument("--request-json", required=True)
+    list_scheduler_parser = scheduler_subparsers.add_parser("list")
+    list_scheduler_parser.add_argument("--request-json", default="{}")
+    delete_scheduler_parser = scheduler_subparsers.add_parser("delete")
+    delete_scheduler_parser.add_argument("--request-json", required=True)
+    run_due_parser = scheduler_subparsers.add_parser("run-due")
+    run_due_parser.add_argument("--request-json", default="{}")
 
     return parser
 
@@ -142,6 +167,12 @@ def main(
     parser = build_parser()
     args = parser.parse_args(argv)
     stdout = stdout or sys.stdout
+
+    if args.command == "validate-extension":
+        response = validate_extension_target(REPO_ROOT, args.path)
+        stdout.write(json.dumps(response))
+        stdout.write("\n")
+        return 0 if response["valid"] else 1
 
     if args.command == "diagnose":
         response = diagnose_runtime(
@@ -228,7 +259,7 @@ def main(
             response = ingest_discord_event(request, store=store, config=config)
     elif args.command == "summaries":
         response = run_background_summaries(
-            _parse_request(args.request_json),
+            _runtime_request(args.request_json, action="run_background_summaries"),
             store=store,
             config=config,
         )
@@ -246,12 +277,42 @@ def main(
                 config=config,
                 transport=args.transport,
                 mount_path=args.mount_path,
+                host=args.host,
+                port=args.port,
             )
         return 0
+    elif args.command == "scheduler":
+        request = _runtime_request(
+            args.request_json,
+            action={
+                "create": "scheduler_create_job",
+                "list": "list_jobs",
+                "delete": "scheduler_delete_job",
+                "run-due": "run_due_jobs",
+            }[args.scheduler_command],
+        )
+        if args.scheduler_command == "create":
+            response = create_job(request, config=config, store=store)
+        elif args.scheduler_command == "list":
+            response = list_jobs(request, config=config)
+        elif args.scheduler_command == "delete":
+            response = delete_job(request, config=config, store=store)
+        else:
+            response = run_due_jobs(request, config=config, store=store)
     else:
         if not config.enable_admin_surface:
             raise PermissionError("Admin surface is disabled")
-        request = _parse_request(args.request_json)
+        request = _runtime_request(
+            args.request_json,
+            action={
+                "update": "update_memory",
+                "delete": "delete_memory",
+                "audit": "audit_memory",
+                "sync": "sync_storage",
+                "maintenance": "maintain_storage",
+                "reindex": "reindex_memory",
+            }[args.admin_command],
+        )
         if args.admin_command == "update":
             response = update_memory(request, store=store, config=config)
         elif args.admin_command == "delete":
@@ -260,6 +321,8 @@ def main(
             response = audit_memory(request, store=store, config=config)
         elif args.admin_command == "sync":
             response = sync_storage(request, store=store, config=config)
+        elif args.admin_command == "maintenance":
+            response = maintain_storage(request, store=store, config=config)
         else:
             response = reindex_memory(request, store=store, config=config)
 
@@ -290,12 +353,14 @@ def run_mcp_server(
     config: NeuroCoreConfig,
     transport: str,
     mount_path: str | None,
+    host: str,
+    port: int,
 ) -> None:
     """Run the MCP adapter with the current store and config."""
     if not config.enable_mcp_adapter:
         raise PermissionError("MCP adapter is disabled")
 
-    server = create_mcp_server(store=store, config=config)
+    server = create_mcp_server(store=store, config=config, host=host, port=port)
     server.run(transport=transport, mount_path=mount_path)
 
 
@@ -305,6 +370,14 @@ def _parse_request(raw: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError("request-json must decode to an object")
     return value
+
+
+def _runtime_request(raw: str, *, action: str) -> dict[str, object]:
+    return attach_runtime_metadata(
+        _parse_request(raw),
+        source_surface="cli",
+        action=action,
+    )
 
 
 if __name__ == "__main__":

@@ -32,8 +32,8 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "black>=24.0",
-    "build>=1.2",
     "flake8>=7.0",
+    "hypothesis>=6.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
 ]
@@ -41,6 +41,11 @@ semantic = ["sentence-transformers>=3.0"]
 
 [project.scripts]
 neurocore = "neurocore.adapters.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/Shiva108/NeuroCore_community/tree/main/docs"
+Issues = "https://github.com/Shiva108/NeuroCore_community/issues"
+Source = "https://github.com/Shiva108/NeuroCore_community"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -50,6 +55,18 @@ addopts = "-ra"
 [tool.black]
 line-length = 88
 target-version = ["py311"]
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203"]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "src/neurocore.egg-info",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

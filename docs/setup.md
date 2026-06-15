@@ -1,62 +1,78 @@
 # Setup Guide
 
-This guide covers the supported local-development path for NeuroCore Community.
+This guide keeps the root README short while giving new contributors a complete
+path from clone to verified local install.
 
 ## Prerequisites
 
 - Python 3.11 or newer
-- `venv` support enabled in your Python installation
-- network access for `pip install`
+- `pip`
+- Optional: `venv` or `uv`
 
-## Recommended Bootstrap Flow
+## Recommended Bootstrap
+
+The fastest safe path is the bootstrap script:
 
 ```bash
 python scripts/bootstrap.py
 source .venv/bin/activate
 ```
 
-The bootstrap script:
+This flow:
 
-- creates `.venv` when needed
-- installs the package in editable mode with development dependencies
-- creates an operator-home `.env` file outside the repository checkout
-- optionally runs tests and repo validation
+- creates or reuses `.venv`
+- installs the package in editable mode with development extras
+- copies local configuration templates into the operator home outside the repo
+- runs `pytest` and repository validation unless you pass `--skip-verify`
+
+Use the guided mode if you want prompts for namespace and overwrite behavior:
+
+```bash
+python scripts/bootstrap.py --wizard
+```
 
 ## Manual Setup
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,semantic]"
 ```
 
-After installation, create your operator-home env file by copying values from
-`.env.example`.
+Create local-only config in the operator home:
 
-## Validation Commands
+```bash
+export NEUROCORE_OPERATOR_HOME="${XDG_STATE_HOME:-$HOME/.local/state}/neurocore"
+mkdir -p "$NEUROCORE_OPERATOR_HOME"
+cp .env.example "$NEUROCORE_OPERATOR_HOME/.env"
+cp secrets.json.example "$NEUROCORE_OPERATOR_HOME/secrets.json"
+cp preferences.json.example "$NEUROCORE_OPERATOR_HOME/preferences.json"
+```
 
-Run these before opening a pull request:
+If you need custom ingest defaults:
+
+```bash
+cp ingest-profiles.json.example ingest-profiles.json
+```
+
+Do not commit populated `.env`, `secrets.json`, `preferences.json`, or local
+database files.
+
+## Validation
+
+Run the publication baseline before opening a pull request:
 
 ```bash
 make test
 make lint
 make validate
-python scripts/generate_openapi_snapshot.py --check
+make openapi-check
 ```
 
-Optional local formatting:
+## Next Steps
 
-```bash
-make format
-```
-
-## First CLI Smoke Test
-
-```bash
-neurocore capture --request-json '{"bucket":"research","content":"community repo note","content_format":"markdown","source_type":"note"}'
-neurocore query --request-json '{"query_text":"community repo","namespace":"default","allowed_buckets":["research"],"sensitivity_ceiling":"standard"}'
-```
-
-See [../examples/quickstart-cli.md](../examples/quickstart-cli.md) for the same
-flow in a copyable reference format.
+- Read [reference-stack.md](reference-stack.md) for the recommended local path.
+- Read [hosted-stack.md](hosted-stack.md) if you plan to use hosted Postgres or
+  mirror mode.
+- Read [troubleshooting.md](troubleshooting.md) if setup fails.

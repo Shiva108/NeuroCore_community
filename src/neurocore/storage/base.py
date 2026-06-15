@@ -190,6 +190,10 @@ class BaseStore(ABC):
         """Return and clear transient store warnings."""
         return []
 
+    def pop_operation_status(self) -> dict[str, object]:
+        """Return and clear transient operation persistence status."""
+        return {}
+
 
 def canonical_audit_event(event: dict[str, object]) -> tuple[object, ...]:
     """Return a stable identity tuple for audit-event deduplication."""

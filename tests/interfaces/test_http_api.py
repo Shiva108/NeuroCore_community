@@ -119,6 +119,26 @@ def test_http_api_capture_batch_delegates_to_capture_many(monkeypatch):
     assert response.json()["summary"]["succeeded"] == 1
 
 
+def test_http_api_validation_errors_return_400():
+    app = create_app(store=InMemoryStore(), config=build_config())
+    client = TestClient(app)
+
+    response = client.post("/capture", json={})
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "content is required"}
+
+
+def test_http_api_missing_brain_returns_404():
+    app = create_app(store=InMemoryStore(), config=build_config())
+    client = TestClient(app)
+
+    response = client.post("/brains/get", json={"brain_id": "missing-brain"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "missing-brain"}
+
+
 def test_http_api_admin_routes_are_gated():
     app = create_app(
         store=InMemoryStore(), config=build_config(enable_admin_surface=False)
@@ -275,7 +295,12 @@ def test_http_api_capture_returns_mirror_warnings_when_local_write_fails():
     )
 
     assert response.status_code == 200
-    assert response.json()["warnings"]
+    payload = response.json()
+    assert payload["warnings"]
+    assert payload["persistence_state"] == "partial"
+    assert payload["parity_state"] == "degraded"
+    assert payload["reconciliation_attempted"] is True
+    assert payload["mirror_status"]["local_degraded"] is True
 
 
 def test_http_api_report_route_returns_fallback_when_consensus_disabled():

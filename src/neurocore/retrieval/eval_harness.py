@@ -39,18 +39,20 @@ def generate_eval_snapshot(path: str | Path) -> dict[str, object]:
             config=config,
             semantic_ranker=ranker,
         )
-        queries.append(
-            {
-                "name": str(query_case.get("name") or ""),
-                "request": _sanitized_request(request),
-                "result_ids": [str(item["id"]) for item in response["results"]],
-                "matched_by": [
-                    str(item.get("matched_by") or "") for item in response["results"]
-                ],
-                "warnings": list(response.get("warnings") or []),
-                "diagnostics": dict(response.get("diagnostics") or {}),
-            }
-        )
+        entry = {
+            "name": str(query_case.get("name") or ""),
+            "request": _sanitized_request(request),
+            "result_ids": [str(item["id"]) for item in response["results"]],
+            "matched_by": [
+                str(item.get("matched_by") or "") for item in response["results"]
+            ],
+            "warnings": list(response.get("warnings") or []),
+            "diagnostics": dict(response.get("diagnostics") or {}),
+        }
+        family = str(query_case.get("family") or "").strip()
+        if family:
+            entry["family"] = family
+        queries.append(entry)
     return {
         "fixture": str(fixture.get("name") or Path(path).stem),
         "config": _sanitized_config(config),
